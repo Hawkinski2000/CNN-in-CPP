@@ -3,29 +3,38 @@
 using namespace std;
 
 
-Tensor::Tensor(initializer_list<int> dims) {
-    for (int i : dims) {
-        dimensions.push_back(i);
-    }
-}
+// Constructor for Tensor class
+Tensor::Tensor(initializer_list<int> dims) : dimensions(dims) {}
 
-vector<int> Tensor::shape() {
+
+// Function to return a tensor's shape vector
+const vector<int>& Tensor::shape() const {
     return dimensions;
 }
 
-int main() {
-    Tensor t({2, 4, 8});
 
-    vector<int> shape = t.shape();
-
-    cout << '(';
-    for (size_t i = 0; i < shape.size(); i++) {
-        cout << shape[i];
-        if (i != shape.size() - 1) {
-            cout << ", ";
+// Function to return a tensor's shape as a string
+string Tensor::shape_str() {
+    string shape = "(";
+    for (size_t i = 0; i < dimensions.size(); i++) {
+        shape += to_string(dimensions[i]);
+        if (i < dimensions.size() - 1) {
+            shape += ", ";
         } 
     }
-    cout << ')' << endl;
+    shape += ')';
+    return shape;
+}
+
+
+int main() {
+    Tensor x({2, 4, 8});
+
+    vector<int> shape = x.shape();
+
+    cout << "The first dim in the tensor x is " << shape[0] << endl;
+
+    cout << "The tensor x has shape "<< x.shape_str() << endl;
 
     return 0;
 }
