@@ -2,8 +2,18 @@
 #include "Tensor.h"
 using namespace std;
 
-// // TODO: Copy and move constructors for copying and assigning tensors,
-// // e.g. "Tensor a = b;" and "c = b;"
+
+/*
+==============================================================================
+TODO:
+    - Printing elements in a tensor.
+    - Assigning a value to an index in an existing tensor.
+    - Copy and move constructors for copying and assigning tensors,
+        e.g. "Tensor a = b;" and "c = b;".
+        
+==============================================================================
+*/
+
 
 // Constructor for Tensor class used by creation methods that specify a shape
 Tensor::Tensor(initializer_list<size_t> dims) : dimensions(dims) {
@@ -101,11 +111,11 @@ Tensor Tensor::tensor(vector<float>& values) {
 }
 
 // Overload the [] operator for indexing into the tensor data
-float& Tensor::operator[](size_t index) {
-    if (index >= total_elements) {
+Tensor::TensorSlice Tensor::operator[](size_t index) {
+    if (index >= dimensions[0]) {
         throw out_of_range("Index out of bounds");
     }
-    return data[index];
+    return TensorSlice(data, dimensions, strides, index * strides[0], 1);
 }
 
 // Function to return a tensor's shape vector
@@ -126,27 +136,57 @@ string Tensor::shape_str() {
     return shape;
 }
 
-int main() {
-    Tensor a = Tensor::tensor({2, 4, 8, 16});
-    cout << "The first element in the tensor a is " << a[0] << endl;
-    cout << "The tensor a has shape "<< a.shape_str() << endl << endl;
+// ---------------------------------------------------------------------------
 
-    vector<float> v = {2, 4, 8, 16};
+Tensor::TensorSlice::TensorSlice(float* data, const vector<size_t>& dimensions,
+    const vector<size_t>& strides, size_t offset, size_t level)
+        : data(data),
+          dimensions(dimensions),
+          strides(strides),
+          offset(offset),
+          level(level) {}
+
+// Overload the [] operator for indexing into the tensor data
+Tensor::TensorSlice Tensor::TensorSlice::operator[](size_t index) {
+    if (level >= dimensions.size()) {
+        throw out_of_range("Index out of bounds");
+    }
+    size_t new_offset = offset + index * strides[level];
+    return TensorSlice(data, dimensions, strides, new_offset, level + 1);
+}
+
+// Overload the float reference conversion operator to return data after the final []
+Tensor::TensorSlice::operator float&() {
+    if (level != dimensions.size()) {
+        throw out_of_range("Cannot convert TensorSlice to float reference");
+    }
+    return data[offset];
+}
+
+// ---------------------------------------------------------------------------
+
+
+int main() {
+    Tensor a = Tensor::tensor({2, 4});
+    cout << "The first element in the tensor a is " << a[0] << endl;
+    cout << "The tensor a has shape " << a.shape_str() << endl << endl;
+
+    vector<float> v = {2, 4};
     Tensor b = Tensor::tensor(v);
     cout << "The first element in the tensor b is " << b[0] << endl;
-    cout << "The tensor b has shape "<< b.shape_str() << endl << endl;
+    cout << "The tensor b has shape " << b.shape_str() << endl << endl;
 
-    Tensor c = Tensor::empty({3, 2});
-    cout << "The first element in the tensor c is " << c[0] << endl;
-    cout << "The tensor c has shape "<< c.shape_str() << endl << endl;
+    Tensor c = Tensor::empty({2, 2});
+    cout << "The first element in the tensor c is " << c[0][0] << endl;
+    cout << "The tensor c has shape " << c.shape_str() << endl << endl;
 
-    Tensor d = Tensor::zeros({8, 4});
-    cout << "The first element in the tensor d is " << d[0] << endl;
-    cout << "The tensor d has shape "<< d.shape_str() << endl << endl;
+    Tensor d = Tensor::zeros({2, 2});
+    cout << "The first element in the tensor d is " << d[0][0] << endl;
+    cout << "The tensor d has shape " << d.shape_str() << endl << endl;
 
     Tensor e = Tensor::ones({2, 4, 6});
-    cout << "The first element in the tensor e is " << e[0] << endl;
-    cout << "The tensor e has shape "<< e.shape_str() << endl << endl;
+    cout << "The first element in the tensor e is " << e[0][0][1] << endl;
+    cout << "The tensor e has shape " << e.shape_str() << endl << endl;
 
     return 0;
 }

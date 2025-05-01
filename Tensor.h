@@ -7,6 +7,26 @@ using namespace std;
 
 class Tensor {
     public:
+        class TensorSlice {
+            public:
+                // Constructor for TensorSlice class used for chaining multiple [] operators
+                TensorSlice(float* data, const vector<size_t>& dimensions,
+                    const vector<size_t>& strides, size_t offset, size_t level);
+
+                // Overload the [] operator for indexing into the tensor data
+                TensorSlice operator[](size_t index);
+
+                // Overload the float reference conversion operator to return data after the final []
+                operator float&();
+        
+            private:
+                float* data = nullptr;
+                vector<size_t> dimensions;
+                vector<size_t> strides;
+                size_t offset;
+                size_t level;
+        };
+
         // Function to create an empty tensor from a specified shape
         static Tensor empty(initializer_list<size_t> dims);
 
@@ -23,7 +43,7 @@ class Tensor {
         static Tensor tensor(vector<float>& values);
 
         // Overload the [] operator for indexing into the tensor data
-        float& operator[](size_t index);
+        TensorSlice operator[](size_t index);
 
         // Function to return a tensor's shape vector
         const vector<size_t>& shape() const;
