@@ -10,7 +10,12 @@ TODO:
     - Copy and move constructors for copying and assigning tensors,
         e.g. "Tensor a = b;" and "c = b;".
     - Modify tensor() to take nested lists of values for creating tensors with
-      multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}) 
+      multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}).
+    - Add.
+    - Transpose.
+    - view().
+    - Multiplication.
+    - Division.
 
 ==============================================================================
 */
@@ -77,6 +82,14 @@ Tensor::Tensor(vector<float>& values) {
     copy(values.begin(), values.end(), data);
 }
 
+// Copy constructor for the Tensor class
+Tensor::Tensor(const Tensor& other) {
+    dimensions = other.dimensions;
+    total_elements = other.total_elements;
+    data = new float[total_elements];
+    copy(other.data, other.data + total_elements, data);
+}
+
 // Destructor for Tensor class
 Tensor::~Tensor() {
     delete[] data;
@@ -117,6 +130,51 @@ Tensor::TensorSlice Tensor::operator[](size_t index) {
         throw out_of_range("Index out of bounds");
     }
     return TensorSlice(data, dimensions, strides, index * strides[0], 1);
+}
+
+// Overload the = operator for copying one tensor to another
+Tensor& Tensor::operator=(const Tensor& other) {
+    if (this != &other) {
+        dimensions = other.dimensions;
+        data = other.data;
+    }
+    return *this;
+}
+
+// Overload the + operator for addition with tensors
+Tensor Tensor::operator+(const Tensor& other) {
+    Tensor result = *this;
+    for (size_t i = 0; i < other.total_elements; i++) {
+        result.data[i] += other.data[i];
+    }
+    return result;
+}
+
+// Overload the - operator for subtraction with tensors
+Tensor Tensor::operator-(const Tensor& other) {
+    Tensor result = *this;
+    for (size_t i = 0; i < other.total_elements; i++) {
+        result.data[i] -= other.data[i];
+    }
+    return result;
+}
+
+// Overload the * operator for element-wise multiplication with tensors
+Tensor Tensor::operator*(const Tensor& other) {
+    Tensor result = *this;
+    for (size_t i = 0; i < other.total_elements; i++) {
+        result.data[i] *= other.data[i];
+    }
+    return result;
+}
+
+// Overload the / operator for element-wise division with tensors
+Tensor Tensor::operator/(const Tensor& other) {
+    Tensor result = *this;
+    for (size_t i = 0; i < other.total_elements; i++) {
+        result.data[i] /= other.data[i];
+    }
+    return result;
 }
 
 // Overload the << operator for printing the contents of a tensor
@@ -198,12 +256,28 @@ int main() {
     // cout << "The first element in the tensor d is " << d[0][0] << endl;
     cout << "The tensor d has shape " << d.shape_str() << endl << endl;
 
-    Tensor e = Tensor::ones({2, 4, 6});
-    cout << "The first element in the tensor e is " << e[0][0][1] << endl;
+    Tensor e = Tensor::ones({8, 4});
+    cout << "The first element in the tensor e is " << e[0][0] << endl;
     cout << "The tensor e has shape " << e.shape_str() << endl << endl;
 
     cout << "The tensor e contains: " << endl;
     cout << e << endl << endl;
+
+    Tensor f = e + e;
+    cout << "The sum of tensor e with itself is tensor f, which contains: " << endl;
+    cout << f << endl << endl;
+
+    Tensor g = e - f;
+    cout << "The difference between tensor f and tensor e is tensor g, which contains: " << endl;
+    cout << g << endl << endl;
+
+    Tensor h = f * f;
+    cout << "The product of tensor f with itself is tensor h, which contains: " << endl;
+    cout << h << endl << endl;
+
+    Tensor i = e / h;
+    cout << "The quotient of tensor e and tensor h is tensor i, which contains: " << endl;
+    cout << i << endl << endl;
 
     return 0;
 }
