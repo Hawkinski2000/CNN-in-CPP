@@ -50,7 +50,7 @@ Tensor::Tensor(initializer_list<float> values) {
 
     total_elements = values.size();
     data = new float[total_elements];
-    dimensions = {1};
+    dimensions = {values.size()};
     strides = {1};
 
     // Copy the values into the tensor's data
@@ -70,7 +70,7 @@ Tensor::Tensor(vector<float>& values) {
 
     total_elements = values.size();
     data = new float[total_elements];
-    dimensions = {1};
+    dimensions = {values.size()};
     strides = {1};
 
     // Copy the values into the tensor's data
