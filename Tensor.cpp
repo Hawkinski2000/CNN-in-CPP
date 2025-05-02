@@ -6,11 +6,12 @@ using namespace std;
 /*
 ==============================================================================
 TODO:
-    - Printing elements in a tensor.
     - Assigning a value to an index in an existing tensor.
     - Copy and move constructors for copying and assigning tensors,
         e.g. "Tensor a = b;" and "c = b;".
-        
+    - Modify tensor() to take nested lists of values for creating tensors with
+      multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}) 
+
 ==============================================================================
 */
 
@@ -118,6 +119,19 @@ Tensor::TensorSlice Tensor::operator[](size_t index) {
     return TensorSlice(data, dimensions, strides, index * strides[0], 1);
 }
 
+// Overload the << operator for printing the contents of a tensor
+ostream& operator<<(ostream& os, Tensor& tensor) {
+    cout << '(';
+    for (size_t i = 0; i < tensor.total_elements; i++) {
+        cout << tensor.data[i];
+        if (i < tensor.total_elements - 1) {
+            cout << ", ";
+        }
+    }
+    cout << ')';
+    return os;
+}
+
 // Function to return a tensor's shape vector
 const vector<size_t>& Tensor::shape() const {
     return dimensions;
@@ -180,13 +194,16 @@ int main() {
     cout << "The first element in the tensor c is " << c[0][0] << endl;
     cout << "The tensor c has shape " << c.shape_str() << endl << endl;
 
-    Tensor d = Tensor::zeros({2, 2});
-    cout << "The first element in the tensor d is " << d[0][0] << endl;
+    Tensor d = Tensor::zeros({2, 16});
+    // cout << "The first element in the tensor d is " << d[0][0] << endl;
     cout << "The tensor d has shape " << d.shape_str() << endl << endl;
 
     Tensor e = Tensor::ones({2, 4, 6});
     cout << "The first element in the tensor e is " << e[0][0][1] << endl;
     cout << "The tensor e has shape " << e.shape_str() << endl << endl;
+
+    cout << "The tensor e contains: " << endl;
+    cout << e << endl << endl;
 
     return 0;
 }

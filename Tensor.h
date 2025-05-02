@@ -45,6 +45,9 @@ class Tensor {
         // Overload the [] operator for indexing into the tensor data
         TensorSlice operator[](size_t index);
 
+        // Overload the << operator for printing the contents of a tensor
+        friend ostream& operator<<(ostream& os, Tensor& tensor);
+
         // Function to return a tensor's shape vector
         const vector<size_t>& shape() const;
 
