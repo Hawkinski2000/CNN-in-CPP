@@ -11,11 +11,9 @@ TODO:
         e.g. "Tensor a = b;" and "c = b;".
     - Modify tensor() to take nested lists of values for creating tensors with
       multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}).
-    - Add.
     - Transpose.
     - view().
-    - Multiplication.
-    - Division.
+    - Matmul.
 
 ==============================================================================
 */
@@ -86,6 +84,7 @@ Tensor::Tensor(vector<float>& values) {
 Tensor::Tensor(const Tensor& other) {
     dimensions = other.dimensions;
     total_elements = other.total_elements;
+    strides = other.strides;
     data = new float[total_elements];
     copy(other.data, other.data + total_elements, data);
 }
@@ -132,11 +131,15 @@ Tensor::TensorSlice Tensor::operator[](size_t index) {
     return TensorSlice(data, dimensions, strides, index * strides[0], 1);
 }
 
-// Overload the = operator for copying one tensor to another
+// Overload the = operator for assigning one tensor to another
 Tensor& Tensor::operator=(const Tensor& other) {
     if (this != &other) {
+        delete[] data;
         dimensions = other.dimensions;
-        data = other.data;
+        strides = other.strides;
+        total_elements = other.total_elements;
+        data = new float[total_elements];
+        copy(other.data, other.data + total_elements, data);
     }
     return *this;
 }
@@ -210,6 +213,7 @@ string Tensor::shape_str() {
 
 // ---------------------------------------------------------------------------
 
+// Constructor for TensorSlice class used for chaining multiple [] operators
 Tensor::TensorSlice::TensorSlice(float* data, const vector<size_t>& dimensions,
     const vector<size_t>& strides, size_t offset, size_t level)
         : data(data),
@@ -253,7 +257,7 @@ int main() {
     cout << "The tensor c has shape " << c.shape_str() << endl << endl;
 
     Tensor d = Tensor::zeros({2, 16});
-    // cout << "The first element in the tensor d is " << d[0][0] << endl;
+    cout << "The first element in the tensor d is " << d[0][0] << endl;
     cout << "The tensor d has shape " << d.shape_str() << endl << endl;
 
     Tensor e = Tensor::ones({8, 4});
@@ -268,7 +272,7 @@ int main() {
     cout << f << endl << endl;
 
     Tensor g = e - f;
-    cout << "The difference between tensor f and tensor e is tensor g, which contains: " << endl;
+    cout << "The difference between tensor e and tensor f is tensor g, which contains: " << endl;
     cout << g << endl << endl;
 
     Tensor h = f * f;
