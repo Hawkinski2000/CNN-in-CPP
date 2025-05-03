@@ -76,7 +76,7 @@ class Tensor {
         Tensor operator/(const Tensor& other);
 
         // Overload the << operator for printing the contents of a tensor
-        friend ostream& operator<<(ostream& os, Tensor& tensor);
+        friend ostream& operator<<(ostream& os, const Tensor& tensor);
 
         // Function to return a tensor's shape vector
         const vector<size_t>& shape() const;

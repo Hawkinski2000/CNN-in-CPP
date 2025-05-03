@@ -6,6 +6,10 @@ using namespace std;
 /*
 ==============================================================================
 TODO:
+    - Overloaded +=, -=, *=, and /= operators for tensors.
+    - Arithmetic between tensors and scalars.
+    - Arithmetic between tensors of different shapes using broadcasting rules.
+    - Overload the << operator for printing TensorSlice objects, e.g., a row.
     - Modify tensor() to take nested lists of values for creating tensors with
       multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}).
     - Transpose.
@@ -204,15 +208,15 @@ Tensor Tensor::operator/(const Tensor& other) {
 }
 
 // Overload the << operator for printing the contents of a tensor
-ostream& operator<<(ostream& os, Tensor& tensor) {
-    cout << '(';
+ostream& operator<<(ostream& os, const Tensor& tensor) {
+    os << '(';
     for (size_t i = 0; i < tensor.total_elements; i++) {
-        cout << tensor.data[i];
+        os << tensor.data[i];
         if (i < tensor.total_elements - 1) {
-            cout << ", ";
+            os << ", ";
         }
     }
-    cout << ')';
+    os << ')';
     return os;
 }
 
@@ -320,6 +324,9 @@ int main() {
     j = Tensor::ones({4, 4});
     cout << "The tensor j created using the default constructor and move assignment operator contains: " << endl;
     cout << j << endl << endl;
+
+    cout << "The product of tensor h with itself is a tensor containing: " << endl;
+    cout << h * h << endl << endl;
 
     return 0;
 }
