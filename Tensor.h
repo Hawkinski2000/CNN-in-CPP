@@ -30,8 +30,14 @@ class Tensor {
                 size_t level;
         };
 
+        // Default constructor for the Tensor class
+        Tensor();
+
         // Copy constructor for the Tensor class
         Tensor(const Tensor& other);
+
+        // Move constructor for the Tensor class
+        Tensor(Tensor&& other);
 
         // Function to create an empty tensor from a specified shape
         static Tensor empty(initializer_list<size_t> dims);
@@ -51,13 +57,16 @@ class Tensor {
         // Overload the [] operator for indexing into the tensor data
         TensorSlice operator[](size_t index);
 
+        // Overload the = operator to move a temporary tensor into an existing tensor
+        Tensor& operator=(Tensor&& other);
+
         // Overload the = operator for copying one tensor to another
         Tensor& operator=(const Tensor& other);
 
         // Overload the + operator for addition with tensors
         Tensor operator+(const Tensor& other);
 
-        // Overload the - operator for addition with tensors
+        // Overload the - operator for subtraction with tensors
         Tensor operator-(const Tensor& other);
 
         // Overload the * operator for element-wise multiplication with tensors

@@ -6,7 +6,6 @@ using namespace std;
 /*
 ==============================================================================
 TODO:
-    - Move constructor/move assignment operator.
     - Modify tensor() to take nested lists of values for creating tensors with
       multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}).
     - Transpose.
@@ -16,6 +15,27 @@ TODO:
 ==============================================================================
 */
 
+// Default constructor for the Tensor class
+Tensor::Tensor() {};
+
+// Copy constructor for the Tensor class
+Tensor::Tensor(const Tensor& other) {
+    dimensions = other.dimensions;
+    total_elements = other.total_elements;
+    strides = other.strides;
+    data = new float[total_elements];
+    copy(other.data, other.data + total_elements, data);
+}
+
+// Move constructor for the Tensor class
+Tensor::Tensor(Tensor&& other)
+    : data(other.data),
+      dimensions(move(other.dimensions)),
+      strides(move(other.strides)),
+      total_elements(other.total_elements) {
+    other.data = nullptr;
+    other.total_elements = 0;
+}
 
 // Constructor for Tensor class used by creation methods that specify a shape
 Tensor::Tensor(initializer_list<size_t> dims) : dimensions(dims) {
@@ -78,15 +98,6 @@ Tensor::Tensor(vector<float>& values) {
     copy(values.begin(), values.end(), data);
 }
 
-// Copy constructor for the Tensor class
-Tensor::Tensor(const Tensor& other) {
-    dimensions = other.dimensions;
-    total_elements = other.total_elements;
-    strides = other.strides;
-    data = new float[total_elements];
-    copy(other.data, other.data + total_elements, data);
-}
-
 // Destructor for Tensor class
 Tensor::~Tensor() {
     delete[] data;
@@ -129,7 +140,21 @@ Tensor::TensorSlice Tensor::operator[](size_t index) {
     return TensorSlice(data, dimensions, strides, index * strides[0], 1);
 }
 
-// Overload the = operator for assigning one tensor to another
+// Overload the = operator to move a temporary tensor into an existing tensor
+Tensor& Tensor::operator=(Tensor&& other) {
+    if (this != &other) {
+        delete[] data;
+        data = other.data;
+        dimensions = move(other.dimensions);
+        strides = move(other.strides);
+        total_elements = other.total_elements;
+        other.data = nullptr;
+        other.total_elements = 0;
+    }
+    return *this;
+}
+
+// Overload the = operator for copying one tensor to another
 Tensor& Tensor::operator=(const Tensor& other) {
     if (this != &other) {
         delete[] data;
@@ -290,6 +315,11 @@ int main() {
     i[0][0] = 2;
     cout << "After assigning the value 2 to the first index in tensor i, it now contains: " << endl;
     cout << i << endl << endl;
+
+    Tensor j; 
+    j = Tensor::ones({4, 4});
+    cout << "The tensor j created using the default constructor and move assignment operator contains: " << endl;
+    cout << j << endl << endl;
 
     return 0;
 }
