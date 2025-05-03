@@ -63,17 +63,29 @@ class Tensor {
         // Overload the = operator for copying one tensor to another
         Tensor& operator=(const Tensor& other);
 
-        // Overload the + operator for addition with tensors
+        // Overload the + operator for element-wise addition between tensors
         Tensor operator+(const Tensor& other);
 
-        // Overload the - operator for subtraction with tensors
+        // Overload the + operator for element-wise addition between tensors and scalars
+        Tensor operator+(float value);
+
+        // Overload the - operator for element-wise subtraction between tensors
         Tensor operator-(const Tensor& other);
 
-        // Overload the * operator for element-wise multiplication with tensors
+        // Overload the - operator for element-wise subtraction between tensors and scalars
+        Tensor operator-(float value);
+
+        // Overload the * operator for element-wise multiplication between tensors
         Tensor operator*(const Tensor& other);
 
-        // Overload the / operator for element-wise division with tensors
+        // Overload the * operator for element-wise multiplication between tensors and scalars
+        Tensor operator*(float value);
+
+        // Overload the / operator for element-wise division between tensors
         Tensor operator/(const Tensor& other);
+
+        // Overload the / operator for element-wise division between tensors and scalars
+        Tensor operator/(float value);
 
         // Overload the << operator for printing the contents of a tensor
         friend ostream& operator<<(ostream& os, const Tensor& tensor);

@@ -7,7 +7,6 @@ using namespace std;
 ==============================================================================
 TODO:
     - Overloaded +=, -=, *=, and /= operators for tensors.
-    - Arithmetic between tensors and scalars.
     - Arithmetic between tensors of different shapes using broadcasting rules.
     - Overload the << operator for printing TensorSlice objects, e.g., a row.
     - Modify tensor() to take nested lists of values for creating tensors with
@@ -171,7 +170,7 @@ Tensor& Tensor::operator=(const Tensor& other) {
     return *this;
 }
 
-// Overload the + operator for addition with tensors
+// Overload the + operator for element-wise addition between tensors
 Tensor Tensor::operator+(const Tensor& other) {
     Tensor result = *this;
     for (size_t i = 0; i < other.total_elements; i++) {
@@ -180,7 +179,16 @@ Tensor Tensor::operator+(const Tensor& other) {
     return result;
 }
 
-// Overload the - operator for subtraction with tensors
+// Overload the + operator for element-wise addition between tensors and scalars
+Tensor Tensor::operator+(float value) {
+    Tensor result = *this;
+    for (size_t i = 0; i < total_elements; i++) {
+        result.data[i] += value;
+    }
+    return result;
+}
+
+// Overload the - operator for element-wise subtraction between tensors
 Tensor Tensor::operator-(const Tensor& other) {
     Tensor result = *this;
     for (size_t i = 0; i < other.total_elements; i++) {
@@ -189,7 +197,16 @@ Tensor Tensor::operator-(const Tensor& other) {
     return result;
 }
 
-// Overload the * operator for element-wise multiplication with tensors
+// Overload the - operator for element-wise subtraction between tensors and scalars
+Tensor Tensor::operator-(float value) {
+    Tensor result = *this;
+    for (size_t i = 0; i < total_elements; i++) {
+        result.data[i] -= value;
+    }
+    return result;
+}
+
+// Overload the * operator for element-wise multiplication between tensors
 Tensor Tensor::operator*(const Tensor& other) {
     Tensor result = *this;
     for (size_t i = 0; i < other.total_elements; i++) {
@@ -198,11 +215,29 @@ Tensor Tensor::operator*(const Tensor& other) {
     return result;
 }
 
-// Overload the / operator for element-wise division with tensors
+// Overload the * operator for element-wise multiplication between tensors and scalars
+Tensor Tensor::operator*(float value) {
+    Tensor result = *this;
+    for (size_t i = 0; i < total_elements; i++) {
+        result.data[i] *= value;
+    }
+    return result;
+}
+
+// Overload the / operator for element-wise division between tensors
 Tensor Tensor::operator/(const Tensor& other) {
     Tensor result = *this;
     for (size_t i = 0; i < other.total_elements; i++) {
         result.data[i] /= other.data[i];
+    }
+    return result;
+}
+
+// Overload the / operator for element-wise division between tensors and scalars
+Tensor Tensor::operator/(float value) {
+    Tensor result = *this;
+    for (size_t i = 0; i < total_elements; i++) {
+        result.data[i] /= value;
     }
     return result;
 }
@@ -327,6 +362,22 @@ int main() {
 
     cout << "The product of tensor h with itself is a tensor containing: " << endl;
     cout << h * h << endl << endl;
+
+    Tensor k = j + 2.5;
+    cout << "The sum of tensor j and 2.5 is tensor k, which contains: " << endl;
+    cout << k << endl << endl;
+
+    Tensor l = j - 2.5;
+    cout << "The difference between tensor j and 2.5 is tensor l, which contains: " << endl;
+    cout << l << endl << endl;
+
+    Tensor m = k * 2;
+    cout << "The product of tensor k and 2 is tensor m, which contains: " << endl;
+    cout << m << endl << endl;
+
+    Tensor n = l / 2;
+    cout << "The quotient of tensor l and 2 is tensor n, which contains: " << endl;
+    cout << n << endl << endl;
 
     return 0;
 }
