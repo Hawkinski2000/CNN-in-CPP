@@ -16,6 +16,9 @@ class Tensor {
                 // Overload the [] operator for indexing into the tensor data
                 TensorSlice operator[](size_t index);
 
+                // Overload the = operator for assigning values to indices in the tensor
+                TensorSlice& operator=(float value);
+
                 // Overload the float reference conversion operator to return data after the final []
                 operator float&();
         

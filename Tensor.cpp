@@ -6,9 +6,7 @@ using namespace std;
 /*
 ==============================================================================
 TODO:
-    - Assigning a value to an index in an existing tensor.
-    - Copy and move constructors for copying and assigning tensors,
-        e.g. "Tensor a = b;" and "c = b;".
+    - Move constructor/move assignment operator.
     - Modify tensor() to take nested lists of values for creating tensors with
       multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}).
     - Transpose.
@@ -231,6 +229,12 @@ Tensor::TensorSlice Tensor::TensorSlice::operator[](size_t index) {
     return TensorSlice(data, dimensions, strides, new_offset, level + 1);
 }
 
+// Overload the = operator for assigning values to indices in the tensor
+Tensor::TensorSlice& Tensor::TensorSlice::operator=(float value) {
+    data[offset] = value;
+    return *this;
+}
+
 // Overload the float reference conversion operator to return data after the final []
 Tensor::TensorSlice::operator float&() {
     if (level != dimensions.size()) {
@@ -281,6 +285,10 @@ int main() {
 
     Tensor i = e / h;
     cout << "The quotient of tensor e and tensor h is tensor i, which contains: " << endl;
+    cout << i << endl << endl;
+
+    i[0][0] = 2;
+    cout << "After assigning the value 2 to the first index in tensor i, it now contains: " << endl;
     cout << i << endl << endl;
 
     return 0;
