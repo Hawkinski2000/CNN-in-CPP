@@ -6,14 +6,15 @@ using namespace std;
 /*
 ==============================================================================
 TODO:
-    - Overloaded +=, -=, *=, and /= operators for tensors.
     - Arithmetic between tensors of different shapes using broadcasting rules.
     - Overload the << operator for printing TensorSlice objects, e.g., a row.
     - Modify tensor() to take nested lists of values for creating tensors with
       multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}).
-    - Transpose.
+    - transpose().
     - view().
-    - Matmul.
+    - min() and max().
+    - cat().
+    - matmul().
 
 ==============================================================================
 */
@@ -188,6 +189,22 @@ Tensor Tensor::operator+(float value) {
     return result;
 }
 
+// Overload the += operator for element-wise addition and assignment between tensors
+Tensor& Tensor::operator+=(const Tensor& other) {
+    for (size_t i = 0; i < other.total_elements; i++) {
+        data[i] += other.data[i];
+    }
+    return *this;
+}
+
+// Overload the += operator for element-wise addition and assignment between tensors and scalars
+Tensor& Tensor::operator+=(float value) {
+    for (size_t i = 0; i < total_elements; i++) {
+        data[i] += value;
+    }
+    return *this;
+}
+
 // Overload the - operator for element-wise subtraction between tensors
 Tensor Tensor::operator-(const Tensor& other) {
     Tensor result = *this;
@@ -204,6 +221,22 @@ Tensor Tensor::operator-(float value) {
         result.data[i] -= value;
     }
     return result;
+}
+
+// Overload the -= operator for element-wise subtraction and assignment between tensors
+Tensor& Tensor::operator-=(const Tensor& other) {
+    for (size_t i = 0; i < other.total_elements; i++) {
+        data[i] -= other.data[i];
+    }
+    return *this;
+}
+
+// Overload the += operator for element-wise subtraction and assignment between tensors and scalars
+Tensor& Tensor::operator-=(float value) {
+    for (size_t i = 0; i < total_elements; i++) {
+        data[i] -= value;
+    }
+    return *this;
 }
 
 // Overload the * operator for element-wise multiplication between tensors
@@ -224,6 +257,22 @@ Tensor Tensor::operator*(float value) {
     return result;
 }
 
+// Overload the *= operator for element-wise multiplication and assignment between tensors
+Tensor& Tensor::operator*=(const Tensor& other) {
+    for (size_t i = 0; i < other.total_elements; i++) {
+        data[i] *= other.data[i];
+    }
+    return *this;
+}
+
+// Overload the *= operator for element-wise multiplication and assignment between tensors and scalars
+Tensor& Tensor::operator*=(float value) {
+    for (size_t i = 0; i < total_elements; i++) {
+        data[i] *= value;
+    }
+    return *this;
+}
+
 // Overload the / operator for element-wise division between tensors
 Tensor Tensor::operator/(const Tensor& other) {
     Tensor result = *this;
@@ -240,6 +289,22 @@ Tensor Tensor::operator/(float value) {
         result.data[i] /= value;
     }
     return result;
+}
+
+// Overload the /= operator for element-wise division and assignment between tensors
+Tensor& Tensor::operator/=(const Tensor& other) {
+    for (size_t i = 0; i < other.total_elements; i++) {
+        data[i] /= other.data[i];
+    }
+    return *this;
+}
+
+// Overload the /= operator for element-wise division and assignment between tensors and scalars
+Tensor& Tensor::operator/=(float value) {
+    for (size_t i = 0; i < total_elements; i++) {
+        data[i] /= value;
+    }
+    return *this;
 }
 
 // Overload the << operator for printing the contents of a tensor
@@ -378,6 +443,38 @@ int main() {
     Tensor n = l / 2;
     cout << "The quotient of tensor l and 2 is tensor n, which contains: " << endl;
     cout << n << endl << endl;
+
+    m += k;
+    cout << "After adding tensor k to tensor m, tensor m now contains: " << endl;
+    cout << m << endl << endl;
+
+    m -= j;
+    cout << "After subtracting tensor j from tensor m, tensor m now contains: " << endl;
+    cout << m << endl << endl;
+
+    m *= n;
+    cout << "After multiplying tensor m by tensor n, tensor m now contains: " << endl;
+    cout << m << endl << endl;
+
+    m /= l;
+    cout << "After dividing tensor m by tensor l, tensor m now contains: " << endl;
+    cout << m << endl << endl;
+
+    m += 1;
+    cout << "After adding 1 to tensor m, it now contains: " << endl;
+    cout << m << endl << endl;
+
+    m -= 2.5;
+    cout << "After subtracting 2.5 from tensor m, it now contains: " << endl;
+    cout << m << endl << endl;
+
+    m *= 2;
+    cout << "After multiplying tensor m by 2, it now contains: " << endl;
+    cout << m << endl << endl;
+
+    m /= 3;
+    cout << "After dividing tensor m by 3, it now contains: " << endl;
+    cout << m << endl << endl;
 
     return 0;
 }
