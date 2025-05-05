@@ -67,6 +67,9 @@ class Tensor {
         // Function to return a new tensor with the same data as the original tensor but of a different shape
         Tensor view(initializer_list<int> shape);
 
+        // Function to flatten the input by reshaping it into a one-dimensional tensor
+        Tensor flatten();
+
         // Overload the + operator for element-wise addition between tensors
         Tensor operator+(const Tensor& other);
 

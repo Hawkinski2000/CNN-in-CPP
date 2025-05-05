@@ -12,7 +12,6 @@ TODO:
     - Modify tensor() to take nested lists of values for creating tensors with
       multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}).
     - transpose().
-    - view().
     - min() and max().
     - cat().
     - matmul().
@@ -207,6 +206,11 @@ Tensor Tensor::view(initializer_list<int> shape) {
     result.total_elements = total_elements;
 
     return result;
+}
+
+// Function to flatten the input by reshaping it into a one-dimensional tensor
+Tensor Tensor::flatten() {
+    return this->view({-1});
 }
 
 // Overload the + operator for element-wise addition between tensors
@@ -525,6 +529,10 @@ int main() {
     cout << "The tensor p has shape " << p.shape_str() << endl << endl;
     Tensor q = p.view({8, -1});
     cout << "The tensor p was reshaped with view() to a new tensor q with shape " << q.shape_str() << endl << endl;
+
+    cout << "The tensor q has shape " << q.shape_str() << endl << endl;
+    q = q.flatten();
+    cout << "The tensor q was flattened and now has the shape " << q.shape_str() << endl << endl;
 
     return 0;
 }
