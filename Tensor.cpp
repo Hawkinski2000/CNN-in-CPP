@@ -7,13 +7,18 @@ using namespace std;
 /*
 ==============================================================================
 TODO:
+    - pow().
     - Arithmetic between tensors of different shapes using broadcasting rules.
+    - squeeze()/unsqueeze().
+    - min() and max().
+    - sum().
+    - mean().
+    - exp().
+    - log().
+    - cat().
     - Overload the << operator for printing TensorSlice objects, e.g., a row.
     - Modify tensor() to take nested lists of values for creating tensors with
       multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}).
-    - transpose().
-    - min() and max().
-    - cat().
     - matmul().
 
 ==============================================================================
@@ -208,9 +213,39 @@ Tensor Tensor::view(initializer_list<int> shape) {
     return result;
 }
 
-// Function to flatten the input by reshaping it into a one-dimensional tensor
+// Function to flatten a tensor by reshaping it into a one-dimensional tensor
 Tensor Tensor::flatten() {
     return this->view({-1});
+}
+
+// Function to return a tensor that is a transposed version of a tensor
+Tensor Tensor::transpose(size_t dim0, size_t dim1) {
+    Tensor result;
+
+    // The new tensor shares the same data as the original tensor
+    result.data = data;
+
+    // Get lengths of specified dimensions
+    size_t size0 = dimensions[dim0];
+    size_t size1 = dimensions[dim1];
+
+    result.dimensions = dimensions;
+
+    // Swap the specified dimensions in the new tensor
+    result.dimensions[dim0] = size1;
+    result.dimensions[dim1] = size0;
+
+    // Calculate strides of the new tensor from its dimensions
+    result.strides.resize(result.dimensions.size());
+    size_t stride = 1;
+    for (size_t i = result.dimensions.size(); i-- > 0;) {
+        result.strides[i] = stride;
+        stride *= result.dimensions[i];
+    }
+
+    result.total_elements = total_elements;
+
+    return result;
 }
 
 // Overload the + operator for element-wise addition between tensors
@@ -533,6 +568,10 @@ int main() {
     cout << "The tensor q has shape " << q.shape_str() << endl << endl;
     q = q.flatten();
     cout << "The tensor q was flattened and now has the shape " << q.shape_str() << endl << endl;
+
+    cout << "The tensor o has shape " << o.shape_str() << endl << endl;
+    o = o.transpose(0, 2);
+    cout << "The tensor o was transposed along dimensions 0 and 2 and now has the shape " << o.shape_str() << endl << endl;
 
     return 0;
 }
