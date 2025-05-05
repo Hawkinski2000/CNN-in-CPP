@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 #include "Tensor.h"
 using namespace std;
 
@@ -20,38 +21,41 @@ TODO:
 */
 
 // Default constructor for the Tensor class
-Tensor::Tensor() {};
+Tensor::Tensor() : total_elements(0) {};
 
 // Copy constructor for the Tensor class
 Tensor::Tensor(const Tensor& other) {
     dimensions = other.dimensions;
     total_elements = other.total_elements;
     strides = other.strides;
-    data = new float[total_elements];
-    copy(other.data, other.data + total_elements, data);
+    data = make_shared<vector<float>>(*other.data);
 }
 
 // Move constructor for the Tensor class
 Tensor::Tensor(Tensor&& other)
-    : data(other.data),
+    : data(move(other.data)),
       dimensions(move(other.dimensions)),
       strides(move(other.strides)),
       total_elements(other.total_elements) {
-    other.data = nullptr;
     other.total_elements = 0;
 }
 
 // Constructor for Tensor class used by creation methods that specify a shape
-Tensor::Tensor(initializer_list<size_t> dims) : dimensions(dims) {
-    
+Tensor::Tensor(initializer_list<size_t> dims) {
+    dimensions.resize(dims.size());
+    size_t i = 0;
+    for (size_t dim : dims) {
+        dimensions[i] = dim;
+        i++;
+    }
+
     // Calculate the total number of elements
     total_elements = 1;
     for (size_t dim : dims) {
         total_elements *= dim;
     }
 
-    // Allocate memory for tensor
-    data = new float[total_elements];
+    data = make_shared<vector<float>>(total_elements);
 
     // Calculate strides from tensor dimensions
     strides.resize(dimensions.size());
@@ -73,17 +77,14 @@ Tensor::Tensor(initializer_list<float> values) {
         return;
     }
 
-    total_elements = values.size();
-    data = new float[total_elements];
+    data = make_shared<vector<float>>(values);
     dimensions = {values.size()};
     strides = {1};
-
-    // Copy the values into the tensor's data
-    copy(values.begin(), values.end(), data);
+    total_elements = values.size();
 }
 
 // Constructor for Tensor class used by tensor() to convert a vector to a tensor
-Tensor::Tensor(vector<float>& values) {
+Tensor::Tensor(const vector<float>& values) {
     
     // Handle empty vector case
     if (values.empty()) {
@@ -93,18 +94,10 @@ Tensor::Tensor(vector<float>& values) {
         return;
     }
 
-    total_elements = values.size();
-    data = new float[total_elements];
+    data = make_shared<vector<float>>(values);
     dimensions = {values.size()};
     strides = {1};
-
-    // Copy the values into the tensor's data
-    copy(values.begin(), values.end(), data);
-}
-
-// Destructor for Tensor class
-Tensor::~Tensor() {
-    delete[] data;
+    total_elements = values.size();
 }
 
 // Function to create an empty tensor from a specified shape
@@ -115,14 +108,14 @@ Tensor Tensor::empty(initializer_list<size_t> dims) {
 // Function to create a tensor of zeros from a specified shape
 Tensor Tensor::zeros(initializer_list<size_t> dims) {
     Tensor tensor(dims);
-    fill(tensor.data, tensor.data + tensor.total_elements, 0);
+    fill(tensor.data->begin(), tensor.data->end(), 0);
     return tensor;
 }
 
 // Function to create a tensor of ones from a specified shape
 Tensor Tensor::ones(initializer_list<size_t> dims) {
     Tensor tensor(dims);
-    fill(tensor.data, tensor.data + tensor.total_elements, 1);
+    fill(tensor.data->begin(), tensor.data->end(), 1);
     return tensor;
 }
 
@@ -138,7 +131,7 @@ Tensor Tensor::tensor(vector<float>& values) {
 
 // Overload the [] operator for indexing into the tensor data
 Tensor::TensorSlice Tensor::operator[](size_t index) {
-    if (index >= dimensions[0]) {
+    if (index >= total_elements) {
         throw out_of_range("Index out of bounds");
     }
     return TensorSlice(data, dimensions, strides, index * strides[0], 1);
@@ -147,12 +140,10 @@ Tensor::TensorSlice Tensor::operator[](size_t index) {
 // Overload the = operator to move a temporary tensor into an existing tensor
 Tensor& Tensor::operator=(Tensor&& other) {
     if (this != &other) {
-        delete[] data;
-        data = other.data;
+        data = move(other.data);
         dimensions = move(other.dimensions);
         strides = move(other.strides);
         total_elements = other.total_elements;
-        other.data = nullptr;
         other.total_elements = 0;
     }
     return *this;
@@ -161,21 +152,68 @@ Tensor& Tensor::operator=(Tensor&& other) {
 // Overload the = operator for copying one tensor to another
 Tensor& Tensor::operator=(const Tensor& other) {
     if (this != &other) {
-        delete[] data;
         dimensions = other.dimensions;
         strides = other.strides;
         total_elements = other.total_elements;
-        data = new float[total_elements];
-        copy(other.data, other.data + total_elements, data);
+        data = make_shared<vector<float>>(*other.data);
     }
     return *this;
+}
+
+// Function to return a new tensor with the same data as the original tensor but of a different shape
+Tensor Tensor::view(initializer_list<int> shape) {
+    Tensor result;
+
+    // The new tensor shares the same data as the original tensor
+    result.data = data;
+
+    // Calcualte dimensions of the new tensor
+    vector<size_t> dims(shape.size());
+    size_t product = 1;
+    int infer_idx = -1;
+    int i = 0;
+    for (int dim : shape) {
+        if (dim == -1) {
+            if (infer_idx > -1) {
+                throw runtime_error("only one dimension can be inferred");
+            }
+            infer_idx = i;
+        }
+        else {
+            product *= dim;
+            dims[i] = dim;
+        }
+        i++;
+    }
+    if (infer_idx > -1) {
+        if (total_elements % product > 0) {
+            throw runtime_error("Shape is invalid for input size " + to_string(total_elements));
+        }
+        dims[infer_idx] = total_elements / product;
+    }
+    else if (product != total_elements) {
+        throw runtime_error("Shape is invalid for input size " + to_string(total_elements));
+    }
+    result.dimensions = move(dims);
+
+    // Calculate strides of the new tensor from its dimensions
+    result.strides.resize(result.dimensions.size());
+    size_t stride = 1;
+    for (size_t i = result.dimensions.size(); i-- > 0;) {
+        result.strides[i] = stride;
+        stride *= result.dimensions[i];
+    }
+
+    result.total_elements = total_elements;
+
+    return result;
 }
 
 // Overload the + operator for element-wise addition between tensors
 Tensor Tensor::operator+(const Tensor& other) {
     Tensor result = *this;
     for (size_t i = 0; i < other.total_elements; i++) {
-        result.data[i] += other.data[i];
+        (*result.data)[i] += (*other.data)[i];
     }
     return result;
 }
@@ -184,7 +222,7 @@ Tensor Tensor::operator+(const Tensor& other) {
 Tensor Tensor::operator+(float value) {
     Tensor result = *this;
     for (size_t i = 0; i < total_elements; i++) {
-        result.data[i] += value;
+        (*result.data)[i] += value;
     }
     return result;
 }
@@ -192,7 +230,7 @@ Tensor Tensor::operator+(float value) {
 // Overload the += operator for element-wise addition and assignment between tensors
 Tensor& Tensor::operator+=(const Tensor& other) {
     for (size_t i = 0; i < other.total_elements; i++) {
-        data[i] += other.data[i];
+        (*data)[i] += (*other.data)[i];
     }
     return *this;
 }
@@ -200,7 +238,7 @@ Tensor& Tensor::operator+=(const Tensor& other) {
 // Overload the += operator for element-wise addition and assignment between tensors and scalars
 Tensor& Tensor::operator+=(float value) {
     for (size_t i = 0; i < total_elements; i++) {
-        data[i] += value;
+        (*data)[i] += value;
     }
     return *this;
 }
@@ -209,7 +247,7 @@ Tensor& Tensor::operator+=(float value) {
 Tensor Tensor::operator-(const Tensor& other) {
     Tensor result = *this;
     for (size_t i = 0; i < other.total_elements; i++) {
-        result.data[i] -= other.data[i];
+        (*result.data)[i] -= (*other.data)[i];
     }
     return result;
 }
@@ -218,7 +256,7 @@ Tensor Tensor::operator-(const Tensor& other) {
 Tensor Tensor::operator-(float value) {
     Tensor result = *this;
     for (size_t i = 0; i < total_elements; i++) {
-        result.data[i] -= value;
+        (*result.data)[i] -= value;
     }
     return result;
 }
@@ -226,7 +264,7 @@ Tensor Tensor::operator-(float value) {
 // Overload the -= operator for element-wise subtraction and assignment between tensors
 Tensor& Tensor::operator-=(const Tensor& other) {
     for (size_t i = 0; i < other.total_elements; i++) {
-        data[i] -= other.data[i];
+        (*data)[i] -= (*other.data)[i];
     }
     return *this;
 }
@@ -234,7 +272,7 @@ Tensor& Tensor::operator-=(const Tensor& other) {
 // Overload the += operator for element-wise subtraction and assignment between tensors and scalars
 Tensor& Tensor::operator-=(float value) {
     for (size_t i = 0; i < total_elements; i++) {
-        data[i] -= value;
+        (*data)[i] -= value;
     }
     return *this;
 }
@@ -243,7 +281,7 @@ Tensor& Tensor::operator-=(float value) {
 Tensor Tensor::operator*(const Tensor& other) {
     Tensor result = *this;
     for (size_t i = 0; i < other.total_elements; i++) {
-        result.data[i] *= other.data[i];
+        (*result.data)[i] *= (*other.data)[i];
     }
     return result;
 }
@@ -252,7 +290,7 @@ Tensor Tensor::operator*(const Tensor& other) {
 Tensor Tensor::operator*(float value) {
     Tensor result = *this;
     for (size_t i = 0; i < total_elements; i++) {
-        result.data[i] *= value;
+        (*result.data)[i] *= value;
     }
     return result;
 }
@@ -260,7 +298,7 @@ Tensor Tensor::operator*(float value) {
 // Overload the *= operator for element-wise multiplication and assignment between tensors
 Tensor& Tensor::operator*=(const Tensor& other) {
     for (size_t i = 0; i < other.total_elements; i++) {
-        data[i] *= other.data[i];
+        (*data)[i] *= (*other.data)[i];
     }
     return *this;
 }
@@ -268,7 +306,7 @@ Tensor& Tensor::operator*=(const Tensor& other) {
 // Overload the *= operator for element-wise multiplication and assignment between tensors and scalars
 Tensor& Tensor::operator*=(float value) {
     for (size_t i = 0; i < total_elements; i++) {
-        data[i] *= value;
+        (*data)[i] *= value;
     }
     return *this;
 }
@@ -277,7 +315,7 @@ Tensor& Tensor::operator*=(float value) {
 Tensor Tensor::operator/(const Tensor& other) {
     Tensor result = *this;
     for (size_t i = 0; i < other.total_elements; i++) {
-        result.data[i] /= other.data[i];
+        (*result.data)[i] /= (*other.data)[i];
     }
     return result;
 }
@@ -286,7 +324,7 @@ Tensor Tensor::operator/(const Tensor& other) {
 Tensor Tensor::operator/(float value) {
     Tensor result = *this;
     for (size_t i = 0; i < total_elements; i++) {
-        result.data[i] /= value;
+        (*result.data)[i] /= value;
     }
     return result;
 }
@@ -294,7 +332,7 @@ Tensor Tensor::operator/(float value) {
 // Overload the /= operator for element-wise division and assignment between tensors
 Tensor& Tensor::operator/=(const Tensor& other) {
     for (size_t i = 0; i < other.total_elements; i++) {
-        data[i] /= other.data[i];
+        (*data)[i] /= (*other.data)[i];
     }
     return *this;
 }
@@ -302,7 +340,7 @@ Tensor& Tensor::operator/=(const Tensor& other) {
 // Overload the /= operator for element-wise division and assignment between tensors and scalars
 Tensor& Tensor::operator/=(float value) {
     for (size_t i = 0; i < total_elements; i++) {
-        data[i] /= value;
+        (*data)[i] /= value;
     }
     return *this;
 }
@@ -311,7 +349,7 @@ Tensor& Tensor::operator/=(float value) {
 ostream& operator<<(ostream& os, const Tensor& tensor) {
     os << '(';
     for (size_t i = 0; i < tensor.total_elements; i++) {
-        os << tensor.data[i];
+        os << (*tensor.data)[i];
         if (i < tensor.total_elements - 1) {
             os << ", ";
         }
@@ -341,7 +379,7 @@ string Tensor::shape_str() {
 // ---------------------------------------------------------------------------
 
 // Constructor for TensorSlice class used for chaining multiple [] operators
-Tensor::TensorSlice::TensorSlice(float* data, const vector<size_t>& dimensions,
+Tensor::TensorSlice::TensorSlice(shared_ptr<vector<float>> data, const vector<size_t>& dimensions,
     const vector<size_t>& strides, size_t offset, size_t level)
         : data(data),
           dimensions(dimensions),
@@ -360,7 +398,7 @@ Tensor::TensorSlice Tensor::TensorSlice::operator[](size_t index) {
 
 // Overload the = operator for assigning values to indices in the tensor
 Tensor::TensorSlice& Tensor::TensorSlice::operator=(float value) {
-    data[offset] = value;
+    (*data)[offset] = value;
     return *this;
 }
 
@@ -369,7 +407,7 @@ Tensor::TensorSlice::operator float&() {
     if (level != dimensions.size()) {
         throw out_of_range("Cannot convert TensorSlice to float reference");
     }
-    return data[offset];
+    return (*data)[offset];
 }
 
 // ---------------------------------------------------------------------------
@@ -475,6 +513,18 @@ int main() {
     m /= 3;
     cout << "After dividing tensor m by 3, it now contains: " << endl;
     cout << m << endl << endl;
+
+    cout << "The tensor m has shape " << m.shape_str() << endl << endl;
+    Tensor o = m.view({2, 2, 4});
+    cout << "The tensor m was reshaped with view() to a new tensor o with shape " << o.shape_str() << endl << endl;
+
+    cout << "The tensor o has shape " << o.shape_str() << endl << endl;
+    Tensor p = o.view({2, 2, 2, 2});
+    cout << "The tensor o was reshaped with view() to a new tensor p with shape " << p.shape_str() << endl << endl;
+
+    cout << "The tensor p has shape " << p.shape_str() << endl << endl;
+    Tensor q = p.view({8, -1});
+    cout << "The tensor p was reshaped with view() to a new tensor q with shape " << q.shape_str() << endl << endl;
 
     return 0;
 }

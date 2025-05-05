@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <vector>
+#include <memory>
 using namespace std;
 
 
@@ -10,7 +11,7 @@ class Tensor {
         class TensorSlice {
             public:
                 // Constructor for TensorSlice class used for chaining multiple [] operators
-                TensorSlice(float* data, const vector<size_t>& dimensions,
+                TensorSlice(shared_ptr<vector<float>> data, const vector<size_t>& dimensions,
                     const vector<size_t>& strides, size_t offset, size_t level);
 
                 // Overload the [] operator for indexing into the tensor data
@@ -23,7 +24,7 @@ class Tensor {
                 operator float&();
         
             private:
-                float* data = nullptr;
+                shared_ptr<vector<float>> data;
                 vector<size_t> dimensions;
                 vector<size_t> strides;
                 size_t offset;
@@ -62,6 +63,9 @@ class Tensor {
 
         // Overload the = operator for copying one tensor to another
         Tensor& operator=(const Tensor& other);
+
+        // Function to return a new tensor with the same data as the original tensor but of a different shape
+        Tensor view(initializer_list<int> shape);
 
         // Overload the + operator for element-wise addition between tensors
         Tensor operator+(const Tensor& other);
@@ -120,9 +124,6 @@ class Tensor {
         // Function to return a tensor's shape as a string
         string shape_str();
 
-        // Destructor for Tensor class
-        ~Tensor();
-
     private:
         // Constructor for Tensor class used by creation methods that specify a shape
         Tensor(initializer_list<size_t> dims);
@@ -131,10 +132,10 @@ class Tensor {
         Tensor(initializer_list<float> values);
 
         // Constructor for Tensor class used by tensor() to convert a vector to a tensor
-        Tensor(vector<float>& values);
+        Tensor(const vector<float>& values);
 
-        float* data = nullptr;
+        shared_ptr<vector<float>> data;
         vector<size_t> dimensions;
         vector<size_t> strides;
-        size_t total_elements = 0;
+        size_t total_elements;
 };
