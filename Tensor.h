@@ -73,6 +73,9 @@ class Tensor {
         // Function to return a tensor that is a transposed version of a tensor
         Tensor transpose(size_t dim0, size_t dim1);
 
+        // Function to return the sum of all elements in a tensor
+        Tensor sum();
+
         // Overload the + operator for element-wise addition between tensors
         Tensor operator+(const Tensor& other);
 

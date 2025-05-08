@@ -16,6 +16,8 @@ TODO:
     - exp().
     - log().
     - cat().
+    - == operator.
+    - Combine tensor-tensor and tensor-scalar arithmetic operators.
     - Overload the << operator for printing TensorSlice objects, e.g., a row.
     - Modify tensor() to take nested lists of values for creating tensors with
       multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}).
@@ -171,7 +173,7 @@ Tensor Tensor::view(initializer_list<int> shape) {
     // The new tensor shares the same data as the original tensor
     result.data = data;
 
-    // Calcualte dimensions of the new tensor
+    // Calculate dimensions of the new tensor
     vector<size_t> dims(shape.size());
     size_t product = 1;
     int infer_idx = -1;
@@ -248,6 +250,15 @@ Tensor Tensor::transpose(size_t dim0, size_t dim1) {
     return result;
 }
 
+// Function to return the sum of all elements in a tensor
+Tensor Tensor::sum() {
+    Tensor result = tensor({0});
+    for (float value : *data) {
+        result[0] += value;
+    }
+    return result;
+}
+
 // Overload the + operator for element-wise addition between tensors
 Tensor Tensor::operator+(const Tensor& other) {
     Tensor result = *this;
@@ -308,7 +319,7 @@ Tensor& Tensor::operator-=(const Tensor& other) {
     return *this;
 }
 
-// Overload the += operator for element-wise subtraction and assignment between tensors and scalars
+// Overload the -= operator for element-wise subtraction and assignment between tensors and scalars
 Tensor& Tensor::operator-=(float value) {
     for (size_t i = 0; i < total_elements; i++) {
         (*data)[i] -= value;
@@ -572,6 +583,10 @@ int main() {
     cout << "The tensor o has shape " << o.shape_str() << endl << endl;
     o = o.transpose(0, 2);
     cout << "The tensor o was transposed along dimensions 0 and 2 and now has the shape " << o.shape_str() << endl << endl;
+
+    cout << "The tensor j contains " << j << endl << endl;
+    j = j.sum();
+    cout << "After applying sum to tensor j, it now contains " << j << endl << endl;
 
     return 0;
 }
