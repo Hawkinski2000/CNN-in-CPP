@@ -7,11 +7,11 @@ using namespace std;
 /*
 ==============================================================================
 TODO:
-    - pow().
+    - pow() (floats and negatives as exponents).
     - Arithmetic between tensors of different shapes using broadcasting rules.
     - squeeze()/unsqueeze().
     - min() and max().
-    - sum().
+    - sum() (specifying dimensions to reduce).
     - mean().
     - exp().
     - log().
@@ -255,6 +255,19 @@ Tensor Tensor::sum() {
     Tensor result = tensor({0});
     for (float value : *data) {
         result[0] += value;
+    }
+    return result;
+}
+
+// Function for element-wise powers between tensors and scalars
+Tensor Tensor::pow(int exponent) {
+    Tensor result = *this;
+    float value;
+    for (size_t i = 0; i < total_elements; i++) {
+        value = (*result.data)[i];
+        for (int j = 0; j < exponent - 1; j++) {
+            (*result.data)[i] *= value;    
+        }
     }
     return result;
 }
@@ -587,6 +600,10 @@ int main() {
     cout << "The tensor j contains " << j << endl << endl;
     j = j.sum();
     cout << "After applying sum to tensor j, it now contains " << j << endl << endl;
+
+    cout << "The tensor f contains " << f << endl << endl;
+    f = f.pow(2);
+    cout << "After applying pow(2) to tensor f, it now contains " << f << endl << endl;
 
     return 0;
 }

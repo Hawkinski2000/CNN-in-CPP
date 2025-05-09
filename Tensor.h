@@ -76,6 +76,9 @@ class Tensor {
         // Function to return the sum of all elements in a tensor
         Tensor sum();
 
+        // Function for element-wise powers between tensors and scalars
+        Tensor pow(int exponent);
+
         // Overload the + operator for element-wise addition between tensors
         Tensor operator+(const Tensor& other);
 
