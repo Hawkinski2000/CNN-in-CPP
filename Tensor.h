@@ -76,6 +76,9 @@ class Tensor {
         // Function to return the sum of all elements in a tensor
         Tensor sum();
 
+        // Function to return the mean of all elements in a tensor
+        Tensor mean();
+
         // Function for element-wise powers between tensors and scalars
         Tensor pow(int exponent);
 

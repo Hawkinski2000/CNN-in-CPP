@@ -12,7 +12,7 @@ TODO:
     - squeeze()/unsqueeze().
     - min() and max().
     - sum() (specifying dimensions to reduce).
-    - mean().
+    - mean() (specifying dimensions to reduce).
     - exp().
     - log().
     - cat().
@@ -256,6 +256,16 @@ Tensor Tensor::sum() {
     for (float value : *data) {
         result[0] += value;
     }
+    return result;
+}
+
+// Function to return the mean of all elements in a tensor
+Tensor Tensor::mean() {
+    Tensor result = tensor({0});
+    for (float value : *data) {
+        result[0] += value;
+    }
+    result[0] /= total_elements;
     return result;
 }
 
@@ -604,6 +614,11 @@ int main() {
     cout << "The tensor f contains " << f << endl << endl;
     f = f.pow(2);
     cout << "After applying pow(2) to tensor f, it now contains " << f << endl << endl;
+
+    Tensor r = Tensor::tensor({1, 2});
+    cout << "The tensor r contains " << r << endl << endl;
+    r = r.mean();
+    cout << "After applying mean to tensor r, it now contains " << r << endl << endl;
 
     return 0;
 }
