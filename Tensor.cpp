@@ -285,8 +285,24 @@ Tensor Tensor::pow(int exponent) {
 // Overload the + operator for element-wise addition between tensors
 Tensor Tensor::operator+(const Tensor& other) {
     Tensor result = *this;
-    for (size_t i = 0; i < other.total_elements; i++) {
-        (*result.data)[i] += (*other.data)[i];
+    if (result.dimensions == other.dimensions) {
+        for (size_t i = 0; i < other.total_elements; i++) {
+            (*result.data)[i] += (*other.data)[i];
+        }
+    }
+    else {
+        size_t i = result.dimensions.size();
+        size_t j = other.dimensions.size();
+        while (i > 0 && j > 0) {
+            --i;
+            --j;
+            if (result.dimensions[i] != result.dimensions[j]
+                && result.dimensions[i] != 1
+                && result.dimensions[j] != 1
+                && result.dimensions.size() == other.dimensions.size()) {
+                    throw runtime_error("Shapes are not broadcastable.");
+                }
+        }
     }
     return result;
 }
@@ -619,6 +635,11 @@ int main() {
     cout << "The tensor r contains " << r << endl << endl;
     r = r.mean();
     cout << "After applying mean to tensor r, it now contains " << r << endl << endl;
+
+    cout << "The tensor f has shape " << f.shape_str() << endl << endl;
+    Tensor s = Tensor::ones({8, 1});
+    f += s;
+    cout << "The tensor f contains " << f << endl << endl;
 
     return 0;
 }
