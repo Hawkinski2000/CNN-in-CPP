@@ -46,7 +46,7 @@ Tensor::Tensor(Tensor&& other)
     other.total_elements = 0;
 }
 
-// Constructor for Tensor class used by creation methods that specify a shape
+// Constructor for Tensor class used by creation methods that specify a shape as an initializer_list
 Tensor::Tensor(initializer_list<size_t> dims) {
     dimensions.resize(dims.size());
     size_t i = 0;
@@ -64,12 +64,28 @@ Tensor::Tensor(initializer_list<size_t> dims) {
     data = make_shared<vector<float>>(total_elements);
 
     // Calculate strides from tensor dimensions
-    strides.resize(dimensions.size());
-    size_t stride = 1;
-    for (size_t i = dimensions.size(); i-- > 0;) {
-        strides[i] = stride;
-        stride *= dimensions[i];
+    strides = compute_strides(dimensions);
+}
+
+// Constructor for Tensor class used by creation methods that specify a shape as a vector
+Tensor::Tensor(const vector<size_t>& dims) {
+    dimensions.resize(dims.size());
+    size_t i = 0;
+    for (size_t dim : dims) {
+        dimensions[i] = dim;
+        i++;
     }
+
+    // Calculate the total number of elements
+    total_elements = 1;
+    for (size_t dim : dims) {
+        total_elements *= dim;
+    }
+
+    data = make_shared<vector<float>>(total_elements);
+
+    // Calculate strides from tensor dimensions
+    strides = compute_strides(dimensions);
 }
 
 // Constructor for Tensor class used by tensor() where values are specified
@@ -106,8 +122,13 @@ Tensor::Tensor(const vector<float>& values) {
     total_elements = values.size();
 }
 
-// Function to create an empty tensor from a specified shape
+// Function to create an empty tensor from a shape specified as an initializer_list
 Tensor Tensor::empty(initializer_list<size_t> dims) {
+    return Tensor(dims);
+}
+
+// Function to create an empty tensor from a shape specified as a vector
+Tensor Tensor::empty(vector<size_t> dims) {
     return Tensor(dims);
 }
 
@@ -203,12 +224,7 @@ Tensor Tensor::view(initializer_list<int> shape) {
     result.dimensions = move(dims);
 
     // Calculate strides of the new tensor from its dimensions
-    result.strides.resize(result.dimensions.size());
-    size_t stride = 1;
-    for (size_t i = result.dimensions.size(); i-- > 0;) {
-        result.strides[i] = stride;
-        stride *= result.dimensions[i];
-    }
+    result.strides = compute_strides(result.dimensions);
 
     result.total_elements = total_elements;
 
@@ -238,12 +254,7 @@ Tensor Tensor::transpose(size_t dim0, size_t dim1) {
     result.dimensions[dim1] = size0;
 
     // Calculate strides of the new tensor from its dimensions
-    result.strides.resize(result.dimensions.size());
-    size_t stride = 1;
-    for (size_t i = result.dimensions.size(); i-- > 0;) {
-        result.strides[i] = stride;
-        stride *= result.dimensions[i];
-    }
+    result.strides = compute_strides(result.dimensions);
 
     result.total_elements = total_elements;
 
@@ -282,28 +293,123 @@ Tensor Tensor::pow(int exponent) {
     return result;
 }
 
+// Function to compute a tensor's strides from its dimensions
+vector<size_t> Tensor::compute_strides(const vector<size_t>& dimensions) {
+    vector<size_t> strides(dimensions.size());
+    size_t stride = 1;
+    for (size_t i = dimensions.size(); i-- > 0;) {
+        strides[i] = stride;
+        stride *= dimensions[i];
+    }
+    return strides;
+}
+
+// Function to pad a shape or strides vector with 1's or 0's for broadcasting
+vector<size_t> Tensor::pad_vector(const vector<size_t>& original, size_t num_dims, size_t pad_with) {
+    vector<size_t> padded(num_dims);
+
+    // Pad original with the specified number to make compatible for broadcasting
+    size_t pad_len = num_dims - original.size();
+    fill(padded.begin(), padded.begin() + pad_len, pad_with);
+    copy(original.begin(), original.end(), padded.begin() + pad_len);
+
+    return padded;
+}
+
+// Function to return a vector containing the resulting tensor shape from an operation on two broadcastable tensors
+vector<size_t> Tensor::broadcast_result_shape(const vector<size_t>& a_dims, const vector<size_t>& b_dims) {
+    size_t num_dims = max(a_dims.size(), b_dims.size());
+
+    vector<size_t> padded_a_dims = pad_vector(a_dims, num_dims, 1);
+    vector<size_t> padded_b_dims = pad_vector(b_dims, num_dims, 1);
+
+    vector<size_t> result_dims(num_dims);
+    for (size_t i = 0; i < num_dims; i++) {
+        if (padded_a_dims[i] == padded_b_dims[i] || padded_a_dims[i] == 1 || padded_b_dims[i] == 1) {
+            result_dims[i] = max(padded_a_dims[i], padded_b_dims[i]);
+        }
+        else {
+            throw runtime_error("Shapes are not broadcastable.");
+        }
+    }
+    return result_dims;
+}
+
+// Function to return a vector containing the broadcastable strides of a tensor given a resulting tensor shape
+vector<size_t> Tensor::broadcast_strides(const vector<size_t>& original_dims, const vector<size_t>& original_strides, const vector<size_t>& result_dims) {
+    size_t num_dims = result_dims.size();
+
+    vector<size_t> padded_dims = pad_vector(original_dims, num_dims, 1);
+    vector<size_t> padded_strides = pad_vector(original_strides, num_dims, 0);
+    
+    vector<size_t> broadcasted_strides(num_dims);
+    for (size_t i = 0; i < num_dims; i++) {
+        if (padded_dims[i] == 1 && result_dims[i] != 1) {
+            broadcasted_strides[i] = 0;
+        }
+        else {
+            broadcasted_strides[i] = padded_strides[i];
+        }
+    }
+    return broadcasted_strides;
+}
+
+// Function to compute the memory offset for a multi-dimensional index from the tensor's strides
+size_t Tensor::compute_offset(const vector<size_t>& indices, const vector<size_t>& strides) {
+    size_t offset = 0;
+    for (int i = 0; i < indices.size(); i++) {
+        offset += indices[i] * strides[i];
+    }
+    return offset;
+}
+
+// Function to advance a multi-dimensional index in a tensor. Returns true if the index was successfully incremented, or false if iteration is complete
+bool Tensor::next_index(vector<size_t>& indices, const vector<size_t>& result_dims) {
+    size_t num_dims = result_dims.size();
+    for (size_t i = num_dims; i-- > 0;) {
+        indices[i]++;
+    if (indices[i] < result_dims[i]) {
+            return true;
+        } else {
+            indices[i] = 0;
+        }
+    }
+    return false;
+}
+
 // Overload the + operator for element-wise addition between tensors
 Tensor Tensor::operator+(const Tensor& other) {
-    Tensor result = *this;
-    if (result.dimensions == other.dimensions) {
+    Tensor result;
+
+    // Need to perform broadcasting since the tensors have different shapes
+    if (dimensions != other.dimensions) {
+        vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
+        result = Tensor(result_dims);
+
+        vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
+        vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
+        vector<size_t> result_strides = compute_strides(result_dims);
+
+        vector<size_t> indices(result_dims.size(), 0);
+
+        do {
+            size_t a_offset = compute_offset(indices, broadcasted_a_strides);
+            size_t b_offset = compute_offset(indices, broadcasted_b_strides);
+            size_t result_offset = compute_offset(indices, result_strides);
+
+            // Add the values from both tensors and store them in the result tensor
+            (*result.data)[result_offset] = (*data)[a_offset] + (*other.data)[b_offset];
+        } while (next_index(indices, result_dims));
+    }
+
+    // Otherwise, the tensors have the same shape, so just add element-wise
+    else {
+        result = *this;
         for (size_t i = 0; i < other.total_elements; i++) {
             (*result.data)[i] += (*other.data)[i];
         }
     }
-    else {
-        size_t i = result.dimensions.size();
-        size_t j = other.dimensions.size();
-        while (i > 0 && j > 0) {
-            --i;
-            --j;
-            if (result.dimensions[i] != result.dimensions[j]
-                && result.dimensions[i] != 1
-                && result.dimensions[j] != 1
-                && result.dimensions.size() == other.dimensions.size()) {
-                    throw runtime_error("Shapes are not broadcastable.");
-                }
-        }
-    }
+
     return result;
 }
 
@@ -505,141 +611,148 @@ Tensor::TensorSlice::operator float&() {
 int main() {
     Tensor a = Tensor::tensor({2, 4});
     cout << "The first element in the tensor a is " << a[0] << endl;
-    cout << "The tensor a has shape " << a.shape_str() << endl << endl;
+    cout << "The tensor a has the shape: " << a.shape_str() << endl << endl;
 
-    vector<float> v = {2, 4};
-    Tensor b = Tensor::tensor(v);
+    vector<float> vec = {2, 4};
+    Tensor b = Tensor::tensor(vec);
     cout << "The first element in the tensor b is " << b[0] << endl;
-    cout << "The tensor b has shape " << b.shape_str() << endl << endl;
+    cout << "The tensor b has the shape: " << b.shape_str() << endl << endl;
 
     Tensor c = Tensor::empty({2, 2});
     cout << "The first element in the tensor c is " << c[0][0] << endl;
-    cout << "The tensor c has shape " << c.shape_str() << endl << endl;
+    cout << "The tensor c has the shape: " << c.shape_str() << endl << endl;
 
     Tensor d = Tensor::zeros({2, 16});
     cout << "The first element in the tensor d is " << d[0][0] << endl;
-    cout << "The tensor d has shape " << d.shape_str() << endl << endl;
+    cout << "The tensor d has the shape: " << d.shape_str() << endl << endl;
 
     Tensor e = Tensor::ones({8, 4});
     cout << "The first element in the tensor e is " << e[0][0] << endl;
-    cout << "The tensor e has shape " << e.shape_str() << endl << endl;
+    cout << "The tensor e has the shape: " << e.shape_str() << endl << endl;
 
-    cout << "The tensor e contains: " << endl;
-    cout << e << endl << endl;
+    cout << "The tensor e contains:" << endl;
+    cout << e << endl;
 
     Tensor f = e + e;
-    cout << "The sum of tensor e with itself is tensor f, which contains: " << endl;
+    cout << "The sum of tensor e with itself is tensor f, which contains:" << endl;
     cout << f << endl << endl;
 
     Tensor g = e - f;
-    cout << "The difference between tensor e and tensor f is tensor g, which contains: " << endl;
+    cout << "The difference between tensor e and tensor f is tensor g, which contains:" << endl;
     cout << g << endl << endl;
 
     Tensor h = f * f;
-    cout << "The product of tensor f with itself is tensor h, which contains: " << endl;
+    cout << "The product of tensor f with itself is tensor h, which contains:" << endl;
     cout << h << endl << endl;
 
     Tensor i = e / h;
-    cout << "The quotient of tensor e and tensor h is tensor i, which contains: " << endl;
+    cout << "The quotient of tensor e and tensor h is tensor i, which contains:" << endl;
     cout << i << endl << endl;
 
     i[0][0] = 2;
-    cout << "After assigning the value 2 to the first index in tensor i, it now contains: " << endl;
+    cout << "After assigning the value 2 to the first index in tensor i, it now contains:" << endl;
     cout << i << endl << endl;
 
     Tensor j; 
     j = Tensor::ones({4, 4});
-    cout << "The tensor j created using the default constructor and move assignment operator contains: " << endl;
+    cout << "The tensor j created using the default constructor and move assignment operator contains:" << endl;
     cout << j << endl << endl;
 
-    cout << "The product of tensor h with itself is a tensor containing: " << endl;
+    cout << "The product of tensor h with itself is a tensor containing:" << endl;
     cout << h * h << endl << endl;
 
     Tensor k = j + 2.5;
-    cout << "The sum of tensor j and 2.5 is tensor k, which contains: " << endl;
+    cout << "The sum of tensor j and 2.5 is tensor k, which contains:" << endl;
     cout << k << endl << endl;
 
     Tensor l = j - 2.5;
-    cout << "The difference between tensor j and 2.5 is tensor l, which contains: " << endl;
+    cout << "The difference between tensor j and 2.5 is tensor l, which contains:" << endl;
     cout << l << endl << endl;
 
     Tensor m = k * 2;
-    cout << "The product of tensor k and 2 is tensor m, which contains: " << endl;
+    cout << "The product of tensor k and 2 is tensor m, which contains:" << endl;
     cout << m << endl << endl;
 
     Tensor n = l / 2;
-    cout << "The quotient of tensor l and 2 is tensor n, which contains: " << endl;
+    cout << "The quotient of tensor l and 2 is tensor n, which contains:" << endl;
     cout << n << endl << endl;
 
     m += k;
-    cout << "After adding tensor k to tensor m, tensor m now contains: " << endl;
+    cout << "After adding tensor k to tensor m, tensor m now contains:" << endl;
     cout << m << endl << endl;
 
     m -= j;
-    cout << "After subtracting tensor j from tensor m, tensor m now contains: " << endl;
+    cout << "After subtracting tensor j from tensor m, tensor m now contains:" << endl;
     cout << m << endl << endl;
 
     m *= n;
-    cout << "After multiplying tensor m by tensor n, tensor m now contains: " << endl;
+    cout << "After multiplying tensor m by tensor n, tensor m now contains:" << endl;
     cout << m << endl << endl;
 
     m /= l;
-    cout << "After dividing tensor m by tensor l, tensor m now contains: " << endl;
+    cout << "After dividing tensor m by tensor l, tensor m now contains:" << endl;
     cout << m << endl << endl;
 
     m += 1;
-    cout << "After adding 1 to tensor m, it now contains: " << endl;
+    cout << "After adding 1 to tensor m, it now contains:" << endl;
     cout << m << endl << endl;
 
     m -= 2.5;
-    cout << "After subtracting 2.5 from tensor m, it now contains: " << endl;
+    cout << "After subtracting 2.5 from tensor m, it now contains:" << endl;
     cout << m << endl << endl;
 
     m *= 2;
-    cout << "After multiplying tensor m by 2, it now contains: " << endl;
+    cout << "After multiplying tensor m by 2, it now contains:" << endl;
     cout << m << endl << endl;
 
     m /= 3;
-    cout << "After dividing tensor m by 3, it now contains: " << endl;
+    cout << "After dividing tensor m by 3, it now contains:" << endl;
     cout << m << endl << endl;
 
-    cout << "The tensor m has shape " << m.shape_str() << endl << endl;
+    cout << "The tensor m has the shape: " << m.shape_str() << endl;
     Tensor o = m.view({2, 2, 4});
-    cout << "The tensor m was reshaped with view() to a new tensor o with shape " << o.shape_str() << endl << endl;
+    cout << "The tensor m was reshaped with view() to a new tensor o with the shape: " << o.shape_str() << endl << endl;
 
-    cout << "The tensor o has shape " << o.shape_str() << endl << endl;
+    cout << "The tensor o has the shape: " << o.shape_str() << endl;
     Tensor p = o.view({2, 2, 2, 2});
-    cout << "The tensor o was reshaped with view() to a new tensor p with shape " << p.shape_str() << endl << endl;
+    cout << "The tensor o was reshaped with view() to a new tensor p with the shape: " << p.shape_str() << endl << endl;
 
-    cout << "The tensor p has shape " << p.shape_str() << endl << endl;
+    cout << "The tensor p has the shape: " << p.shape_str() << endl;
     Tensor q = p.view({8, -1});
-    cout << "The tensor p was reshaped with view() to a new tensor q with shape " << q.shape_str() << endl << endl;
+    cout << "The tensor p was reshaped with view() to a new tensor q with the shape: " << q.shape_str() << endl << endl;
 
-    cout << "The tensor q has shape " << q.shape_str() << endl << endl;
+    cout << "The tensor q has the shape: " << q.shape_str() << endl;
     q = q.flatten();
-    cout << "The tensor q was flattened and now has the shape " << q.shape_str() << endl << endl;
+    cout << "The tensor q was flattened and now has the shape: " << q.shape_str() << endl << endl;
 
-    cout << "The tensor o has shape " << o.shape_str() << endl << endl;
+    cout << "The tensor o has the shape: " << o.shape_str() << endl;
     o = o.transpose(0, 2);
-    cout << "The tensor o was transposed along dimensions 0 and 2 and now has the shape " << o.shape_str() << endl << endl;
+    cout << "The tensor o was transposed along dimensions 0 and 2 and now has the shape: " << o.shape_str() << endl << endl;
 
-    cout << "The tensor j contains " << j << endl << endl;
+    cout << "The tensor j contains:" << endl << j << endl;
     j = j.sum();
-    cout << "After applying sum to tensor j, it now contains " << j << endl << endl;
+    cout << "After applying sum to tensor j, it now contains:" << endl << j << endl << endl;
 
-    cout << "The tensor f contains " << f << endl << endl;
+    cout << "The tensor f contains:" << endl << f << endl;
     f = f.pow(2);
-    cout << "After applying pow(2) to tensor f, it now contains " << f << endl << endl;
+    cout << "After applying pow(2) to tensor f, it now contains:" << endl << f << endl << endl;
 
     Tensor r = Tensor::tensor({1, 2});
-    cout << "The tensor r contains " << r << endl << endl;
+    cout << "The tensor r contains:" << endl << r << endl;
     r = r.mean();
-    cout << "After applying mean to tensor r, it now contains " << r << endl << endl;
+    cout << "After applying mean to tensor r, it now contains:" << endl << r << endl << endl;
 
-    cout << "The tensor f has shape " << f.shape_str() << endl << endl;
-    Tensor s = Tensor::ones({8, 1});
-    f += s;
-    cout << "The tensor f contains " << f << endl << endl;
+    vector<size_t> vec2 = {4, 2};
+    Tensor s = Tensor::empty(vec2);
+    cout << "The tensor s has the shape: " << s.shape_str() << endl << endl;
+
+    cout << "The tensor f has the shape: " << f.shape_str() << endl;
+    cout << "The tensor f contains:" << endl << f << endl;
+    Tensor t = Tensor::ones({4});
+    cout << "The tensor t has the shape: " << t.shape_str() << endl;
+    cout << "The tensor t contains:" << endl << t << endl;
+    f = f + t;
+    cout << "After adding tensor t to tensor f, tensor f now contains:" << endl << f << endl << endl;
 
     return 0;
 }

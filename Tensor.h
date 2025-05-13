@@ -40,8 +40,11 @@ class Tensor {
         // Move constructor for the Tensor class
         Tensor(Tensor&& other);
 
-        // Function to create an empty tensor from a specified shape
+        // Function to create an empty tensor from a shape specified as an initializer_list
         static Tensor empty(initializer_list<size_t> dims);
+
+        // Function to create an empty tensor from a shape specified as a vector
+        static Tensor empty(vector<size_t> dims);
 
         // Function to create a tensor of zeros from a specified shape
         static Tensor zeros(initializer_list<size_t> dims);
@@ -81,6 +84,24 @@ class Tensor {
 
         // Function for element-wise powers between tensors and scalars
         Tensor pow(int exponent);
+
+        // Function to compute a tensor's strides from its dimensions
+        vector<size_t> compute_strides(const vector<size_t>& dimensions);
+
+        // Function to pad a shape or strides vector with 1's or 0's for broadcasting
+        vector<size_t> pad_vector(const vector<size_t>& original, size_t num_dims, size_t pad_with);
+
+        // Function to return a vector containing the resulting tensor shape from an operation on two broadcastable tensors
+        vector<size_t> broadcast_result_shape(const vector<size_t>& a_dims, const vector<size_t>& b_dims);
+
+        // Function to return a vector containing the broadcastable strides of a tensor given a resulting tensor shape
+        vector<size_t> broadcast_strides(const vector<size_t>& original_dims, const vector<size_t>& original_strides, const vector<size_t>& result_dims);
+
+        // Function to compute the memory offset for a multi-dimensional index from the tensor's strides
+        size_t compute_offset(const vector<size_t>& indices, const vector<size_t>& strides);
+
+        // Function to advance a multi-dimensional index in a tensor. Returns true if the index was successfully incremented, or false if iteration is complete
+        bool next_index(vector<size_t>& indices, const vector<size_t>& result_dims);
 
         // Overload the + operator for element-wise addition between tensors
         Tensor operator+(const Tensor& other);
@@ -140,8 +161,11 @@ class Tensor {
         string shape_str();
 
     private:
-        // Constructor for Tensor class used by creation methods that specify a shape
+        // Constructor for Tensor class used by creation methods that specify a shape as an initializer_list
         Tensor(initializer_list<size_t> dims);
+
+        // Constructor for Tensor class used by creation methods that specify a shape as a vector
+        Tensor(const vector<size_t>& dims);
 
         // Constructor for Tensor class used by tensor() where values are specified
         Tensor(initializer_list<float> values);
