@@ -440,10 +440,37 @@ Tensor& Tensor::operator+=(float value) {
 
 // Overload the - operator for element-wise subtraction between tensors
 Tensor Tensor::operator-(const Tensor& other) {
-    Tensor result = *this;
-    for (size_t i = 0; i < other.total_elements; i++) {
-        (*result.data)[i] -= (*other.data)[i];
+    Tensor result;
+
+    // Need to perform broadcasting since the tensors have different shapes
+    if (dimensions != other.dimensions) {
+        vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
+        result = Tensor(result_dims);
+
+        vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
+        vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
+        vector<size_t> result_strides = compute_strides(result_dims);
+
+        vector<size_t> indices(result_dims.size(), 0);
+
+        do {
+            size_t a_offset = compute_offset(indices, broadcasted_a_strides);
+            size_t b_offset = compute_offset(indices, broadcasted_b_strides);
+            size_t result_offset = compute_offset(indices, result_strides);
+
+            // Subtract the values from both tensors and store them in the result tensor
+            (*result.data)[result_offset] = (*data)[a_offset] - (*other.data)[b_offset];
+        } while (next_index(indices, result_dims));
     }
+
+    // Otherwise, the tensors have the same shape, so just subtract element-wise
+    else {
+        result = *this;
+        for (size_t i = 0; i < other.total_elements; i++) {
+            (*result.data)[i] -= (*other.data)[i];
+        }
+    }
+
     return result;
 }
 
@@ -474,10 +501,37 @@ Tensor& Tensor::operator-=(float value) {
 
 // Overload the * operator for element-wise multiplication between tensors
 Tensor Tensor::operator*(const Tensor& other) {
-    Tensor result = *this;
-    for (size_t i = 0; i < other.total_elements; i++) {
-        (*result.data)[i] *= (*other.data)[i];
+    Tensor result;
+
+    // Need to perform broadcasting since the tensors have different shapes
+    if (dimensions != other.dimensions) {
+        vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
+        result = Tensor(result_dims);
+
+        vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
+        vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
+        vector<size_t> result_strides = compute_strides(result_dims);
+
+        vector<size_t> indices(result_dims.size(), 0);
+
+        do {
+            size_t a_offset = compute_offset(indices, broadcasted_a_strides);
+            size_t b_offset = compute_offset(indices, broadcasted_b_strides);
+            size_t result_offset = compute_offset(indices, result_strides);
+
+            // Multiply the values from both tensors and store them in the result tensor
+            (*result.data)[result_offset] = (*data)[a_offset] * (*other.data)[b_offset];
+        } while (next_index(indices, result_dims));
     }
+
+    // Otherwise, the tensors have the same shape, so just multiply element-wise
+    else {
+        result = *this;
+        for (size_t i = 0; i < other.total_elements; i++) {
+            (*result.data)[i] *= (*other.data)[i];
+        }
+    }
+
     return result;
 }
 
@@ -508,10 +562,37 @@ Tensor& Tensor::operator*=(float value) {
 
 // Overload the / operator for element-wise division between tensors
 Tensor Tensor::operator/(const Tensor& other) {
-    Tensor result = *this;
-    for (size_t i = 0; i < other.total_elements; i++) {
-        (*result.data)[i] /= (*other.data)[i];
+    Tensor result;
+
+    // Need to perform broadcasting since the tensors have different shapes
+    if (dimensions != other.dimensions) {
+        vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
+        result = Tensor(result_dims);
+
+        vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
+        vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
+        vector<size_t> result_strides = compute_strides(result_dims);
+
+        vector<size_t> indices(result_dims.size(), 0);
+
+        do {
+            size_t a_offset = compute_offset(indices, broadcasted_a_strides);
+            size_t b_offset = compute_offset(indices, broadcasted_b_strides);
+            size_t result_offset = compute_offset(indices, result_strides);
+
+            // Divide the values from both tensors and store them in the result tensor
+            (*result.data)[result_offset] = (*data)[a_offset] / (*other.data)[b_offset];
+        } while (next_index(indices, result_dims));
     }
+
+    // Otherwise, the tensors have the same shape, so just divide element-wise
+    else {
+        result = *this;
+        for (size_t i = 0; i < other.total_elements; i++) {
+            (*result.data)[i] /= (*other.data)[i];
+        }
+    }
+    
     return result;
 }
 
@@ -753,6 +834,23 @@ int main() {
     cout << "The tensor t contains:" << endl << t << endl;
     f = f + t;
     cout << "After adding tensor t to tensor f, tensor f now contains:" << endl << f << endl << endl;
+
+    cout << "The tensor f contains:" << endl << f << endl;
+    t *= 2;
+    cout << "The tensor t contains:" << endl << t << endl;
+    f = f - t;
+    cout << "After subtracting tensor t from tensor f, tensor f now contains:" << endl << f << endl << endl;
+
+    cout << "The tensor f contains:" << endl << f << endl;
+    cout << "The tensor t contains:" << endl << t << endl;
+    f = f * t;
+    cout << "After multiplying tensor f by tensor t, tensor f now contains:" << endl << f << endl << endl;
+
+    cout << "The tensor f contains:" << endl << f << endl;
+    t += 1;
+    cout << "The tensor t contains:" << endl << t << endl;
+    f = f / t;
+    cout << "After dividing tensor f by tensor t, tensor f now contains:" << endl << f << endl << endl;
 
     return 0;
 }
