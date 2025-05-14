@@ -14,6 +14,8 @@ class Tensor {
                 TensorSlice(shared_ptr<vector<float>> data, const vector<size_t>& dimensions,
                     const vector<size_t>& strides, size_t offset, size_t level);
 
+                // ---------------------------------------------------------------------------
+
                 // Overload the [] operator for indexing into the tensor data
                 TensorSlice operator[](size_t index);
 
@@ -40,6 +42,8 @@ class Tensor {
         // Move constructor for the Tensor class
         Tensor(Tensor&& other);
 
+        // ---------------------------------------------------------------------------
+
         // Function to create an empty tensor from a shape specified as an initializer_list
         static Tensor empty(initializer_list<size_t> dims);
 
@@ -49,14 +53,22 @@ class Tensor {
         // Function to create a tensor of zeros from a specified shape
         static Tensor zeros(initializer_list<size_t> dims);
 
+        // Function to create tensor of zeros from a shape specified as a vector
+        static Tensor zeros(vector<size_t> dims);
+
         // Function to create a tensor of ones from a specified shape
         static Tensor ones(initializer_list<size_t> dims);
+
+        // Function to create tensor of ones from a shape specified as a vector
+        static Tensor ones(vector<size_t> dims);
 
         // Function to create a tensor from specified values
         static Tensor tensor(initializer_list<float> values);
 
         // Function to create a tensor from a vector
         static Tensor tensor(vector<float>& values);
+
+        // ---------------------------------------------------------------------------
 
         // Overload the [] operator for indexing into the tensor data
         TensorSlice operator[](size_t index);
@@ -67,6 +79,8 @@ class Tensor {
         // Overload the = operator for copying one tensor to another
         Tensor& operator=(const Tensor& other);
 
+        // ---------------------------------------------------------------------------
+
         // Function to return a new tensor with the same data as the original tensor but of a different shape
         Tensor view(initializer_list<int> shape);
 
@@ -76,6 +90,8 @@ class Tensor {
         // Function to return a tensor that is a transposed version of a tensor
         Tensor transpose(size_t dim0, size_t dim1);
 
+        // ---------------------------------------------------------------------------
+
         // Function to return the sum of all elements in a tensor
         Tensor sum();
 
@@ -84,6 +100,8 @@ class Tensor {
 
         // Function for element-wise powers between tensors and scalars
         Tensor pow(int exponent);
+
+        // ---------------------------------------------------------------------------
 
         // Function to compute a tensor's strides from its dimensions
         vector<size_t> compute_strides(const vector<size_t>& dimensions);
@@ -103,6 +121,8 @@ class Tensor {
         // Function to advance a multi-dimensional index in a tensor. Returns true if the index was successfully incremented, or false if iteration is complete
         bool next_index(vector<size_t>& indices, const vector<size_t>& result_dims);
 
+        // ---------------------------------------------------------------------------
+
         // Overload the + operator for element-wise addition between tensors
         Tensor operator+(const Tensor& other);
 
@@ -114,6 +134,8 @@ class Tensor {
 
         // Overload the += operator for element-wise addition and assignment between tensors and scalars
         Tensor& operator+=(float value);
+
+        // ---------------------------------------------------------------------------
 
         // Overload the - operator for element-wise subtraction between tensors
         Tensor operator-(const Tensor& other);
@@ -127,6 +149,8 @@ class Tensor {
         // Overload the -= operator for element-wise subtraction and assignment between tensors and scalars
         Tensor& operator-=(float value);
 
+        // ---------------------------------------------------------------------------
+
         // Overload the * operator for element-wise multiplication between tensors
         Tensor operator*(const Tensor& other);
 
@@ -139,6 +163,8 @@ class Tensor {
         // Overload the *= operator for element-wise multiplication and assignment between tensors and scalars
         Tensor& operator*=(float value);
 
+        // ---------------------------------------------------------------------------
+
         // Overload the / operator for element-wise division between tensors
         Tensor operator/(const Tensor& other);
 
@@ -150,6 +176,8 @@ class Tensor {
 
         // Overload the /= operator for element-wise division and assignment between tensors and scalars
         Tensor& operator/=(float value);
+
+        // ---------------------------------------------------------------------------
 
         // Overload the << operator for printing the contents of a tensor
         friend ostream& operator<<(ostream& os, const Tensor& tensor);
@@ -172,6 +200,8 @@ class Tensor {
 
         // Constructor for Tensor class used by tensor() to convert a vector to a tensor
         Tensor(const vector<float>& values);
+
+        // ---------------------------------------------------------------------------
 
         shared_ptr<vector<float>> data;
         vector<size_t> dimensions;

@@ -8,7 +8,6 @@ using namespace std;
 ==============================================================================
 TODO:
     - pow() (floats and negatives as exponents).
-    - Arithmetic between tensors of different shapes using broadcasting rules.
     - squeeze()/unsqueeze().
     - min() and max().
     - sum() (specifying dimensions to reduce).
@@ -122,6 +121,8 @@ Tensor::Tensor(const vector<float>& values) {
     total_elements = values.size();
 }
 
+// ---------------------------------------------------------------------------
+
 // Function to create an empty tensor from a shape specified as an initializer_list
 Tensor Tensor::empty(initializer_list<size_t> dims) {
     return Tensor(dims);
@@ -139,8 +140,22 @@ Tensor Tensor::zeros(initializer_list<size_t> dims) {
     return tensor;
 }
 
+// Function to create tensor of zeros from a shape specified as a vector
+Tensor Tensor::zeros(vector<size_t> dims) {
+    Tensor tensor(dims);
+    fill(tensor.data->begin(), tensor.data->end(), 0);
+    return tensor;
+}
+
 // Function to create a tensor of ones from a specified shape
 Tensor Tensor::ones(initializer_list<size_t> dims) {
+    Tensor tensor(dims);
+    fill(tensor.data->begin(), tensor.data->end(), 1);
+    return tensor;
+}
+
+// Function to create tensor of ones from a shape specified as a vector
+Tensor Tensor::ones(vector<size_t> dims) {
     Tensor tensor(dims);
     fill(tensor.data->begin(), tensor.data->end(), 1);
     return tensor;
@@ -155,6 +170,8 @@ Tensor Tensor::tensor(initializer_list<float> values) {
 Tensor Tensor::tensor(vector<float>& values) {
     return Tensor(values);
 }
+
+// ---------------------------------------------------------------------------
 
 // Overload the [] operator for indexing into the tensor data
 Tensor::TensorSlice Tensor::operator[](size_t index) {
@@ -186,6 +203,8 @@ Tensor& Tensor::operator=(const Tensor& other) {
     }
     return *this;
 }
+
+// ---------------------------------------------------------------------------
 
 // Function to return a new tensor with the same data as the original tensor but of a different shape
 Tensor Tensor::view(initializer_list<int> shape) {
@@ -261,6 +280,8 @@ Tensor Tensor::transpose(size_t dim0, size_t dim1) {
     return result;
 }
 
+// ---------------------------------------------------------------------------
+
 // Function to return the sum of all elements in a tensor
 Tensor Tensor::sum() {
     Tensor result = tensor({0});
@@ -292,6 +313,8 @@ Tensor Tensor::pow(int exponent) {
     }
     return result;
 }
+
+// ---------------------------------------------------------------------------
 
 // Function to compute a tensor's strides from its dimensions
 vector<size_t> Tensor::compute_strides(const vector<size_t>& dimensions) {
@@ -377,6 +400,8 @@ bool Tensor::next_index(vector<size_t>& indices, const vector<size_t>& result_di
     return false;
 }
 
+// ---------------------------------------------------------------------------
+
 // Overload the + operator for element-wise addition between tensors
 Tensor Tensor::operator+(const Tensor& other) {
     Tensor result;
@@ -438,6 +463,8 @@ Tensor& Tensor::operator+=(float value) {
     return *this;
 }
 
+// ---------------------------------------------------------------------------
+
 // Overload the - operator for element-wise subtraction between tensors
 Tensor Tensor::operator-(const Tensor& other) {
     Tensor result;
@@ -474,6 +501,8 @@ Tensor Tensor::operator-(const Tensor& other) {
     return result;
 }
 
+// ---------------------------------------------------------------------------
+
 // Overload the - operator for element-wise subtraction between tensors and scalars
 Tensor Tensor::operator-(float value) {
     Tensor result = *this;
@@ -498,6 +527,8 @@ Tensor& Tensor::operator-=(float value) {
     }
     return *this;
 }
+
+// ---------------------------------------------------------------------------
 
 // Overload the * operator for element-wise multiplication between tensors
 Tensor Tensor::operator*(const Tensor& other) {
@@ -560,6 +591,8 @@ Tensor& Tensor::operator*=(float value) {
     return *this;
 }
 
+// ---------------------------------------------------------------------------
+
 // Overload the / operator for element-wise division between tensors
 Tensor Tensor::operator/(const Tensor& other) {
     Tensor result;
@@ -621,6 +654,8 @@ Tensor& Tensor::operator/=(float value) {
     return *this;
 }
 
+// ---------------------------------------------------------------------------
+
 // Overload the << operator for printing the contents of a tensor
 ostream& operator<<(ostream& os, const Tensor& tensor) {
     os << '(';
@@ -662,6 +697,8 @@ Tensor::TensorSlice::TensorSlice(shared_ptr<vector<float>> data, const vector<si
           strides(strides),
           offset(offset),
           level(level) {}
+
+// ---------------------------------------------------------------------------
 
 // Overload the [] operator for indexing into the tensor data
 Tensor::TensorSlice Tensor::TensorSlice::operator[](size_t index) {
@@ -851,6 +888,14 @@ int main() {
     cout << "The tensor t contains:" << endl << t << endl;
     f = f / t;
     cout << "After dividing tensor f by tensor t, tensor f now contains:" << endl << f << endl << endl;
+
+    vector<size_t> vec3 = {4, 2};
+    Tensor u = Tensor::zeros(vec2);
+    cout << "The tensor u has the shape: " << u.shape_str() << endl << endl;
+
+    vector<size_t> vec4 = {4, 2};
+    Tensor v = Tensor::ones(vec2);
+    cout << "The tensor v has the shape: " << v.shape_str() << endl << endl;
 
     return 0;
 }
