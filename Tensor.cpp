@@ -9,7 +9,7 @@ using namespace std;
 TODO:
     - pow() (floats and negatives as exponents).
     - squeeze()/unsqueeze().
-    - min() and max().
+    - min() and max() (specifying dimensions to reduce).
     - sum() (specifying dimensions to reduce).
     - mean() (specifying dimensions to reduce).
     - exp().
@@ -314,6 +314,28 @@ Tensor Tensor::pow(int exponent) {
     return result;
 }
 
+// Function to return the minimum value of all elements in a tensor
+Tensor Tensor::min() {
+    Tensor result = empty({1});
+    float min = (*data)[0];
+    for (size_t i = 1; i < total_elements; i++) {
+        min = std::min(min, (*data)[i]);
+    }
+    result[0] = min;
+    return result;
+}
+
+// Function to return the maximum value of all elements in a tensor
+Tensor Tensor::max() {
+    Tensor result = empty({1});
+    float max = (*data)[0];
+    for (size_t i = 1; i < total_elements; i++) {
+        max = std::max(max, (*data)[i]);
+    }
+    result[0] = max;
+    return result;
+}
+
 // ---------------------------------------------------------------------------
 
 // Function to compute a tensor's strides from its dimensions
@@ -341,7 +363,7 @@ vector<size_t> Tensor::pad_vector(const vector<size_t>& original, size_t num_dim
 
 // Function to return a vector containing the resulting tensor shape from an operation on two broadcastable tensors
 vector<size_t> Tensor::broadcast_result_shape(const vector<size_t>& a_dims, const vector<size_t>& b_dims) {
-    size_t num_dims = max(a_dims.size(), b_dims.size());
+    size_t num_dims = std::max(a_dims.size(), b_dims.size());
 
     vector<size_t> padded_a_dims = pad_vector(a_dims, num_dims, 1);
     vector<size_t> padded_b_dims = pad_vector(b_dims, num_dims, 1);
@@ -349,7 +371,7 @@ vector<size_t> Tensor::broadcast_result_shape(const vector<size_t>& a_dims, cons
     vector<size_t> result_dims(num_dims);
     for (size_t i = 0; i < num_dims; i++) {
         if (padded_a_dims[i] == padded_b_dims[i] || padded_a_dims[i] == 1 || padded_b_dims[i] == 1) {
-            result_dims[i] = max(padded_a_dims[i], padded_b_dims[i]);
+            result_dims[i] = std::max(padded_a_dims[i], padded_b_dims[i]);
         }
         else {
             throw runtime_error("Shapes are not broadcastable.");
@@ -897,5 +919,14 @@ int main() {
     Tensor v = Tensor::ones(vec2);
     cout << "The tensor v has the shape: " << v.shape_str() << endl << endl;
 
+    Tensor w = Tensor::tensor({1, 2, 3, 4});
+    cout << "The tensor w contains:" << endl << w << endl;
+    Tensor x = w.min();
+    cout << "The result of applying min() to tensor w is a new tensor x, which contains:" << endl << x << endl << endl;
+
+    cout << "The tensor w contains:" << endl << w << endl;
+    x = w.max();
+    cout << "The result of applying max() to tensor w is a new tensor x, which contains:" << endl << x << endl << endl;
+    
     return 0;
 }

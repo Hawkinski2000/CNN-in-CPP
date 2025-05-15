@@ -101,6 +101,12 @@ class Tensor {
         // Function for element-wise powers between tensors and scalars
         Tensor pow(int exponent);
 
+        // Function to return the minimum value of all elements in a tensor
+        Tensor min();
+
+        // Function to return the maximum value of all elements in a tensor
+        Tensor max();
+
         // ---------------------------------------------------------------------------
 
         // Function to compute a tensor's strides from its dimensions
