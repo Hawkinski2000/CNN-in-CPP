@@ -107,6 +107,9 @@ class Tensor {
         // Function to return the maximum value of all elements in a tensor
         Tensor max();
 
+        // Function to return true if two tensors have the same shape and elements, otherwise false.
+        bool equal(const Tensor& other);
+
         // ---------------------------------------------------------------------------
 
         // Function to compute a tensor's strides from its dimensions

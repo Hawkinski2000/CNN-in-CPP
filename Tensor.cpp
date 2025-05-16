@@ -336,6 +336,19 @@ Tensor Tensor::max() {
     return result;
 }
 
+// Function to return true if two tensors have the same shape and elements, otherwise false.
+bool Tensor::equal(const Tensor& other) {
+    if (shape() == other.shape()) {
+        for (size_t i = 0; i < total_elements; i++) {
+            if ((*data)[i] != (*other.data)[i]) {
+                return false;
+            } 
+        }
+        return true;
+    }
+    return false;
+}
+
 // ---------------------------------------------------------------------------
 
 // Function to compute a tensor's strides from its dimensions
@@ -927,6 +940,15 @@ int main() {
     cout << "The tensor w contains:" << endl << w << endl;
     x = w.max();
     cout << "The result of applying max() to tensor w is a new tensor x, which contains:" << endl << x << endl << endl;
+    
+    cout << "The tensor w contains:" << endl << w << endl;
+    bool equal = w.equal(w);
+    cout << "The result of applying equal() to tensor w and itself is: " << equal << endl << endl;
+
+    cout << "The tensor w contains:" << endl << w << endl;
+    cout << "The tensor x contains:" << endl << x << endl;
+    equal = w.equal(x);
+    cout << "The result of applying equal() to tensor w and tensor x is: " << equal << endl << endl;
     
     return 0;
 }
