@@ -110,6 +110,9 @@ class Tensor {
         // Function to return true if two tensors have the same shape and elements, otherwise false.
         bool equal(const Tensor& other);
 
+        // Function to return the matrix product of two tensors.
+        Tensor matmul(Tensor& other);
+
         // ---------------------------------------------------------------------------
 
         // Function to compute a tensor's strides from its dimensions

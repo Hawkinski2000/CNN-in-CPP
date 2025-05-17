@@ -7,6 +7,7 @@ using namespace std;
 /*
 ==============================================================================
 TODO:
+    - Multiple Tensor data types.
     - pow() (floats and negatives as exponents).
     - squeeze()/unsqueeze().
     - min() and max() (specifying dimensions to reduce).
@@ -20,7 +21,7 @@ TODO:
     - Overload the << operator for printing TensorSlice objects, e.g., a row.
     - Modify tensor() to take nested lists of values for creating tensors with
       multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}).
-    - matmul().
+    - matmul() (CUDA).
 
 ==============================================================================
 */
@@ -154,7 +155,7 @@ Tensor Tensor::ones(initializer_list<size_t> dims) {
     return tensor;
 }
 
-// Function to create tensor of ones from a shape specified as a vector
+// Function to create a tensor of ones from a shape specified as a vector
 Tensor Tensor::ones(vector<size_t> dims) {
     Tensor tensor(dims);
     fill(tensor.data->begin(), tensor.data->end(), 1);
@@ -347,6 +348,22 @@ bool Tensor::equal(const Tensor& other) {
         return true;
     }
     return false;
+}
+
+// Function to return the matrix product of two tensors.
+Tensor Tensor::matmul(Tensor& other) {
+    Tensor A = *this;
+    Tensor result = Tensor::empty({dimensions[0], other.dimensions[1]});
+    for (size_t i = 0; i < result.total_elements; i++) {
+        float temp = 0;
+        size_t row = i / dimensions[1];
+        size_t col = i % dimensions[1];
+        for (size_t j = 0; j < dimensions[1]; j++) {
+            temp += A[0][0] * other[j][col];
+        }
+        result[row][col] = temp;
+    }
+    return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -949,6 +966,15 @@ int main() {
     cout << "The tensor x contains:" << endl << x << endl;
     equal = w.equal(x);
     cout << "The result of applying equal() to tensor w and tensor x is: " << equal << endl << endl;
+
+    Tensor y = Tensor::ones({2, 2});
+    y *= 3;
+    cout << "The tensor y contains:" << endl << y << endl;
+    Tensor z = Tensor::ones({2, 2});
+    z *= 2;
+    cout << "The tensor z contains:" << endl << z << endl;
+    Tensor z2 = y.matmul(z);
+    cout << "The tensor z2 contains:" << endl << z2 << endl;
     
     return 0;
 }
