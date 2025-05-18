@@ -352,6 +352,9 @@ bool Tensor::equal(const Tensor& other) {
 
 // Function to return the matrix product of two tensors.
 Tensor Tensor::matmul(Tensor& other) {
+    if (dimensions[1] != other.dimensions[0]) {
+        throw runtime_error("Matrix shapes cannot be multiplied.");
+    }
     Tensor A = *this;
     Tensor result = Tensor::empty({dimensions[0], other.dimensions[1]});
     for (size_t i = 0; i < result.total_elements; i++) {
