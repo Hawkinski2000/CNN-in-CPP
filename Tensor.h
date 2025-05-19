@@ -11,7 +11,7 @@ class Tensor {
         class TensorSlice {
             public:
                 // Constructor for TensorSlice class used for chaining multiple [] operators
-                TensorSlice(shared_ptr<vector<float>> data, const vector<size_t>& dimensions,
+                TensorSlice(shared_ptr<float> data, const vector<size_t>& dimensions,
                     const vector<size_t>& strides, size_t offset, size_t level);
 
                 // ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ class Tensor {
                 operator float&();
         
             private:
-                shared_ptr<vector<float>> data;
+                shared_ptr<float> data;
                 vector<size_t> dimensions;
                 vector<size_t> strides;
                 size_t offset;
@@ -111,7 +111,9 @@ class Tensor {
         bool equal(const Tensor& other);
 
         // Function to return the matrix product of two tensors.
-        Tensor matmul(Tensor& other);
+        // This function uses code from Simon Boehm's repository, "SGEMM_CUDA":
+        // https://github.com/siboehm/SGEMM_CUDA/tree/master
+        Tensor matmul(const Tensor& other);
 
         // ---------------------------------------------------------------------------
 
@@ -215,7 +217,7 @@ class Tensor {
 
         // ---------------------------------------------------------------------------
 
-        shared_ptr<vector<float>> data;
+        shared_ptr<float> data;
         vector<size_t> dimensions;
         vector<size_t> strides;
         size_t total_elements;

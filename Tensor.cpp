@@ -4,6 +4,8 @@
 using namespace std;
 
 
+// Compile with: nvcc -o Tensor Tensor.cpp matmul.cu -lcublas
+
 /*
 ==============================================================================
 TODO:
@@ -21,7 +23,6 @@ TODO:
     - Overload the << operator for printing TensorSlice objects, e.g., a row.
     - Modify tensor() to take nested lists of values for creating tensors with
       multiple dimensions, e.g., tensor({{1, 2}, {3, 4}}).
-    - matmul() (CUDA).
 
 ==============================================================================
 */
@@ -33,8 +34,9 @@ Tensor::Tensor() : total_elements(0) {};
 Tensor::Tensor(const Tensor& other) {
     dimensions = other.dimensions;
     total_elements = other.total_elements;
-    strides = other.strides;
-    data = make_shared<vector<float>>(*other.data);
+    strides = other.strides;    
+    data = shared_ptr<float>(new float[other.total_elements], default_delete<float[]>());
+    copy(other.data.get(), other.data.get() + other.total_elements, data.get());   
 }
 
 // Move constructor for the Tensor class
@@ -61,7 +63,7 @@ Tensor::Tensor(initializer_list<size_t> dims) {
         total_elements *= dim;
     }
 
-    data = make_shared<vector<float>>(total_elements);
+    data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
 
     // Calculate strides from tensor dimensions
     strides = compute_strides(dimensions);
@@ -82,7 +84,7 @@ Tensor::Tensor(const vector<size_t>& dims) {
         total_elements *= dim;
     }
 
-    data = make_shared<vector<float>>(total_elements);
+    data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
 
     // Calculate strides from tensor dimensions
     strides = compute_strides(dimensions);
@@ -99,7 +101,9 @@ Tensor::Tensor(initializer_list<float> values) {
         return;
     }
 
-    data = make_shared<vector<float>>(values);
+    data = shared_ptr<float>(new float[values.size()], default_delete<float[]>());
+    copy(values.begin(), values.end(), data.get());
+
     dimensions = {values.size()};
     strides = {1};
     total_elements = values.size();
@@ -116,7 +120,9 @@ Tensor::Tensor(const vector<float>& values) {
         return;
     }
 
-    data = make_shared<vector<float>>(values);
+    data = shared_ptr<float>(new float[values.size()], default_delete<float[]>());
+    copy(values.begin(), values.end(), data.get());
+
     dimensions = {values.size()};
     strides = {1};
     total_elements = values.size();
@@ -137,28 +143,28 @@ Tensor Tensor::empty(vector<size_t> dims) {
 // Function to create a tensor of zeros from a specified shape
 Tensor Tensor::zeros(initializer_list<size_t> dims) {
     Tensor tensor(dims);
-    fill(tensor.data->begin(), tensor.data->end(), 0);
+    fill(tensor.data.get(), tensor.data.get() + tensor.total_elements, 0);
     return tensor;
 }
 
 // Function to create tensor of zeros from a shape specified as a vector
 Tensor Tensor::zeros(vector<size_t> dims) {
     Tensor tensor(dims);
-    fill(tensor.data->begin(), tensor.data->end(), 0);
+    fill(tensor.data.get(), tensor.data.get() + tensor.total_elements, 0);
     return tensor;
 }
 
 // Function to create a tensor of ones from a specified shape
 Tensor Tensor::ones(initializer_list<size_t> dims) {
     Tensor tensor(dims);
-    fill(tensor.data->begin(), tensor.data->end(), 1);
+    fill(tensor.data.get(), tensor.data.get() + tensor.total_elements, 1);
     return tensor;
 }
 
 // Function to create a tensor of ones from a shape specified as a vector
 Tensor Tensor::ones(vector<size_t> dims) {
     Tensor tensor(dims);
-    fill(tensor.data->begin(), tensor.data->end(), 1);
+    fill(tensor.data.get(), tensor.data.get() + tensor.total_elements, 1);
     return tensor;
 }
 
@@ -200,7 +206,8 @@ Tensor& Tensor::operator=(const Tensor& other) {
         dimensions = other.dimensions;
         strides = other.strides;
         total_elements = other.total_elements;
-        data = make_shared<vector<float>>(*other.data);
+        data = shared_ptr<float>(new float[other.total_elements], default_delete<float[]>());
+        copy(other.data.get(), other.data.get() + other.total_elements, data.get());   
     }
     return *this;
 }
@@ -286,8 +293,8 @@ Tensor Tensor::transpose(size_t dim0, size_t dim1) {
 // Function to return the sum of all elements in a tensor
 Tensor Tensor::sum() {
     Tensor result = tensor({0});
-    for (float value : *data) {
-        result[0] += value;
+    for (size_t i = 0; i < total_elements; i++) {
+        result[0] += data.get()[i];
     }
     return result;
 }
@@ -295,8 +302,8 @@ Tensor Tensor::sum() {
 // Function to return the mean of all elements in a tensor
 Tensor Tensor::mean() {
     Tensor result = tensor({0});
-    for (float value : *data) {
-        result[0] += value;
+    for (size_t i = 0; i < total_elements; i++) {
+        result[0] += data.get()[i];
     }
     result[0] /= total_elements;
     return result;
@@ -307,9 +314,9 @@ Tensor Tensor::pow(int exponent) {
     Tensor result = *this;
     float value;
     for (size_t i = 0; i < total_elements; i++) {
-        value = (*result.data)[i];
+        value = result.data.get()[i];
         for (int j = 0; j < exponent - 1; j++) {
-            (*result.data)[i] *= value;    
+            result.data.get()[i] *= value;    
         }
     }
     return result;
@@ -318,9 +325,9 @@ Tensor Tensor::pow(int exponent) {
 // Function to return the minimum value of all elements in a tensor
 Tensor Tensor::min() {
     Tensor result = empty({1});
-    float min = (*data)[0];
+    float min = data.get()[0];
     for (size_t i = 1; i < total_elements; i++) {
-        min = std::min(min, (*data)[i]);
+        min = std::min(min, data.get()[i]);
     }
     result[0] = min;
     return result;
@@ -329,9 +336,9 @@ Tensor Tensor::min() {
 // Function to return the maximum value of all elements in a tensor
 Tensor Tensor::max() {
     Tensor result = empty({1});
-    float max = (*data)[0];
+    float max = data.get()[0];
     for (size_t i = 1; i < total_elements; i++) {
-        max = std::max(max, (*data)[i]);
+        max = std::max(max, data.get()[i]);
     }
     result[0] = max;
     return result;
@@ -341,7 +348,7 @@ Tensor Tensor::max() {
 bool Tensor::equal(const Tensor& other) {
     if (shape() == other.shape()) {
         for (size_t i = 0; i < total_elements; i++) {
-            if ((*data)[i] != (*other.data)[i]) {
+            if (data.get()[i] != other.data.get()[i]) {
                 return false;
             } 
         }
@@ -351,23 +358,23 @@ bool Tensor::equal(const Tensor& other) {
 }
 
 // Function to return the matrix product of two tensors.
-Tensor Tensor::matmul(Tensor& other) {
-    if (dimensions[1] != other.dimensions[0]) {
-        throw runtime_error("Matrix shapes cannot be multiplied.");
-    }
-    Tensor A = *this;
-    Tensor result = Tensor::empty({dimensions[0], other.dimensions[1]});
-    for (size_t i = 0; i < result.total_elements; i++) {
-        float temp = 0;
-        size_t row = i / dimensions[1];
-        size_t col = i % dimensions[1];
-        for (size_t j = 0; j < dimensions[1]; j++) {
-            temp += A[0][0] * other[j][col];
-        }
-        result[row][col] = temp;
-    }
-    return result;
-}
+// Tensor Tensor::matmul(Tensor& other) {
+//     if (dimensions[1] != other.dimensions[0]) {
+//         throw runtime_error("Matrix shapes cannot be multiplied.");
+//     }
+//     Tensor A = *this;
+//     Tensor result = Tensor::empty({dimensions[0], other.dimensions[1]});
+//     for (size_t i = 0; i < result.total_elements; i++) {
+//         float temp = 0;
+//         size_t row = i / dimensions[1];
+//         size_t col = i % dimensions[1];
+//         for (size_t j = 0; j < dimensions[1]; j++) {
+//             temp += A[0][0] * other[j][col];
+//         }
+//         result[row][col] = temp;
+//     }
+//     return result;
+// }
 
 // ---------------------------------------------------------------------------
 
@@ -478,7 +485,7 @@ Tensor Tensor::operator+(const Tensor& other) {
             size_t result_offset = compute_offset(indices, result_strides);
 
             // Add the values from both tensors and store them in the result tensor
-            (*result.data)[result_offset] = (*data)[a_offset] + (*other.data)[b_offset];
+            result.data.get()[result_offset] = data.get()[a_offset] + other.data.get()[b_offset];
         } while (next_index(indices, result_dims));
     }
 
@@ -486,7 +493,7 @@ Tensor Tensor::operator+(const Tensor& other) {
     else {
         result = *this;
         for (size_t i = 0; i < other.total_elements; i++) {
-            (*result.data)[i] += (*other.data)[i];
+            result.data.get()[i] += other.data.get()[i];
         }
     }
 
@@ -497,7 +504,7 @@ Tensor Tensor::operator+(const Tensor& other) {
 Tensor Tensor::operator+(float value) {
     Tensor result = *this;
     for (size_t i = 0; i < total_elements; i++) {
-        (*result.data)[i] += value;
+        result.data.get()[i] += value;
     }
     return result;
 }
@@ -505,7 +512,7 @@ Tensor Tensor::operator+(float value) {
 // Overload the += operator for element-wise addition and assignment between tensors
 Tensor& Tensor::operator+=(const Tensor& other) {
     for (size_t i = 0; i < other.total_elements; i++) {
-        (*data)[i] += (*other.data)[i];
+        data.get()[i] += other.data.get()[i];
     }
     return *this;
 }
@@ -513,7 +520,7 @@ Tensor& Tensor::operator+=(const Tensor& other) {
 // Overload the += operator for element-wise addition and assignment between tensors and scalars
 Tensor& Tensor::operator+=(float value) {
     for (size_t i = 0; i < total_elements; i++) {
-        (*data)[i] += value;
+        data.get()[i] += value;
     }
     return *this;
 }
@@ -541,7 +548,7 @@ Tensor Tensor::operator-(const Tensor& other) {
             size_t result_offset = compute_offset(indices, result_strides);
 
             // Subtract the values from both tensors and store them in the result tensor
-            (*result.data)[result_offset] = (*data)[a_offset] - (*other.data)[b_offset];
+            result.data.get()[result_offset] = data.get()[a_offset] - other.data.get()[b_offset];
         } while (next_index(indices, result_dims));
     }
 
@@ -549,7 +556,7 @@ Tensor Tensor::operator-(const Tensor& other) {
     else {
         result = *this;
         for (size_t i = 0; i < other.total_elements; i++) {
-            (*result.data)[i] -= (*other.data)[i];
+            result.data.get()[i] -= other.data.get()[i];
         }
     }
 
@@ -562,7 +569,7 @@ Tensor Tensor::operator-(const Tensor& other) {
 Tensor Tensor::operator-(float value) {
     Tensor result = *this;
     for (size_t i = 0; i < total_elements; i++) {
-        (*result.data)[i] -= value;
+        result.data.get()[i] -= value;
     }
     return result;
 }
@@ -570,7 +577,7 @@ Tensor Tensor::operator-(float value) {
 // Overload the -= operator for element-wise subtraction and assignment between tensors
 Tensor& Tensor::operator-=(const Tensor& other) {
     for (size_t i = 0; i < other.total_elements; i++) {
-        (*data)[i] -= (*other.data)[i];
+        data.get()[i] -= other.data.get()[i];
     }
     return *this;
 }
@@ -578,7 +585,7 @@ Tensor& Tensor::operator-=(const Tensor& other) {
 // Overload the -= operator for element-wise subtraction and assignment between tensors and scalars
 Tensor& Tensor::operator-=(float value) {
     for (size_t i = 0; i < total_elements; i++) {
-        (*data)[i] -= value;
+        data.get()[i] -= value;
     }
     return *this;
 }
@@ -606,7 +613,7 @@ Tensor Tensor::operator*(const Tensor& other) {
             size_t result_offset = compute_offset(indices, result_strides);
 
             // Multiply the values from both tensors and store them in the result tensor
-            (*result.data)[result_offset] = (*data)[a_offset] * (*other.data)[b_offset];
+            result.data.get()[result_offset] = data.get()[a_offset] * other.data.get()[b_offset];
         } while (next_index(indices, result_dims));
     }
 
@@ -614,7 +621,7 @@ Tensor Tensor::operator*(const Tensor& other) {
     else {
         result = *this;
         for (size_t i = 0; i < other.total_elements; i++) {
-            (*result.data)[i] *= (*other.data)[i];
+            result.data.get()[i] *= other.data.get()[i];
         }
     }
 
@@ -625,7 +632,7 @@ Tensor Tensor::operator*(const Tensor& other) {
 Tensor Tensor::operator*(float value) {
     Tensor result = *this;
     for (size_t i = 0; i < total_elements; i++) {
-        (*result.data)[i] *= value;
+        result.data.get()[i] *= value;
     }
     return result;
 }
@@ -633,7 +640,7 @@ Tensor Tensor::operator*(float value) {
 // Overload the *= operator for element-wise multiplication and assignment between tensors
 Tensor& Tensor::operator*=(const Tensor& other) {
     for (size_t i = 0; i < other.total_elements; i++) {
-        (*data)[i] *= (*other.data)[i];
+        data.get()[i] *= other.data.get()[i];
     }
     return *this;
 }
@@ -641,7 +648,7 @@ Tensor& Tensor::operator*=(const Tensor& other) {
 // Overload the *= operator for element-wise multiplication and assignment between tensors and scalars
 Tensor& Tensor::operator*=(float value) {
     for (size_t i = 0; i < total_elements; i++) {
-        (*data)[i] *= value;
+        data.get()[i] *= value;
     }
     return *this;
 }
@@ -669,7 +676,7 @@ Tensor Tensor::operator/(const Tensor& other) {
             size_t result_offset = compute_offset(indices, result_strides);
 
             // Divide the values from both tensors and store them in the result tensor
-            (*result.data)[result_offset] = (*data)[a_offset] / (*other.data)[b_offset];
+            result.data.get()[result_offset] = data.get()[a_offset] / other.data.get()[b_offset];
         } while (next_index(indices, result_dims));
     }
 
@@ -677,7 +684,7 @@ Tensor Tensor::operator/(const Tensor& other) {
     else {
         result = *this;
         for (size_t i = 0; i < other.total_elements; i++) {
-            (*result.data)[i] /= (*other.data)[i];
+            result.data.get()[i] /= other.data.get()[i];
         }
     }
     
@@ -688,7 +695,7 @@ Tensor Tensor::operator/(const Tensor& other) {
 Tensor Tensor::operator/(float value) {
     Tensor result = *this;
     for (size_t i = 0; i < total_elements; i++) {
-        (*result.data)[i] /= value;
+        result.data.get()[i] /= value;
     }
     return result;
 }
@@ -696,7 +703,7 @@ Tensor Tensor::operator/(float value) {
 // Overload the /= operator for element-wise division and assignment between tensors
 Tensor& Tensor::operator/=(const Tensor& other) {
     for (size_t i = 0; i < other.total_elements; i++) {
-        (*data)[i] /= (*other.data)[i];
+        data.get()[i] /= other.data.get()[i];
     }
     return *this;
 }
@@ -704,7 +711,7 @@ Tensor& Tensor::operator/=(const Tensor& other) {
 // Overload the /= operator for element-wise division and assignment between tensors and scalars
 Tensor& Tensor::operator/=(float value) {
     for (size_t i = 0; i < total_elements; i++) {
-        (*data)[i] /= value;
+        data.get()[i] /= value;
     }
     return *this;
 }
@@ -715,7 +722,7 @@ Tensor& Tensor::operator/=(float value) {
 ostream& operator<<(ostream& os, const Tensor& tensor) {
     os << '(';
     for (size_t i = 0; i < tensor.total_elements; i++) {
-        os << (*tensor.data)[i];
+        os << tensor.data.get()[i];
         if (i < tensor.total_elements - 1) {
             os << ", ";
         }
@@ -745,7 +752,7 @@ string Tensor::shape_str() {
 // ---------------------------------------------------------------------------
 
 // Constructor for TensorSlice class used for chaining multiple [] operators
-Tensor::TensorSlice::TensorSlice(shared_ptr<vector<float>> data, const vector<size_t>& dimensions,
+Tensor::TensorSlice::TensorSlice(shared_ptr<float> data, const vector<size_t>& dimensions,
     const vector<size_t>& strides, size_t offset, size_t level)
         : data(data),
           dimensions(dimensions),
@@ -766,7 +773,7 @@ Tensor::TensorSlice Tensor::TensorSlice::operator[](size_t index) {
 
 // Overload the = operator for assigning values to indices in the tensor
 Tensor::TensorSlice& Tensor::TensorSlice::operator=(float value) {
-    (*data)[offset] = value;
+    data.get()[offset] = value;
     return *this;
 }
 
@@ -775,7 +782,7 @@ Tensor::TensorSlice::operator float&() {
     if (level != dimensions.size()) {
         throw out_of_range("Cannot convert TensorSlice to float reference");
     }
-    return (*data)[offset];
+    return data.get()[offset];
 }
 
 // ---------------------------------------------------------------------------
@@ -970,14 +977,14 @@ int main() {
     equal = w.equal(x);
     cout << "The result of applying equal() to tensor w and tensor x is: " << equal << endl << endl;
 
-    Tensor y = Tensor::ones({2, 2});
+    Tensor y = Tensor::ones({2, 4});
     y *= 3;
     cout << "The tensor y contains:" << endl << y << endl;
-    Tensor z = Tensor::ones({2, 2});
+    Tensor z = Tensor::ones({4, 2});
     z *= 2;
-    cout << "The tensor z contains:" << endl << z << endl;
-    Tensor z2 = y.matmul(z);
-    cout << "The tensor z2 contains:" << endl << z2 << endl;
-    
+    cout << "The tensor z contains:" << endl << z << endl;    
+    z = y.matmul(z);
+    cout << "After applying matmul to tensors y and z and storing the result in z, the tensor z now contains:" << endl << z << endl;
+
     return 0;
 }
