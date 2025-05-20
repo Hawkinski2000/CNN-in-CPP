@@ -34,6 +34,16 @@ Tensor Tensor::matmul(const Tensor& other) {
         batch_count *= dim;
     }
 
+    size_t strideA, strideB, strideC;  
+    strideA = m * k;
+    if (dimensions.size() > other.dimensions.size()) {
+        strideB = 0;
+    }
+    else {
+        strideB = k * n;
+    }
+    strideC = m * n;
+
     float alpha = 1, beta = 0; // GEMM input parameters, C=α*AB+β*C
 
     float *dA, *dB, *dC;
@@ -43,15 +53,15 @@ Tensor Tensor::matmul(const Tensor& other) {
     float* C = new float[batch_count * m * n];
 
     cudaMalloc((void **)&dA, sizeof(float) * batch_count * m * k);
-    cudaMalloc((void **)&dB, sizeof(float) * batch_count * k * n);
+    cudaMalloc((void **)&dB, sizeof(float) * k * n);
     cudaMalloc((void **)&dC, sizeof(float) * batch_count * m * n);
 
     cudaMemcpy(dA, A, sizeof(float) * batch_count * m * k, cudaMemcpyHostToDevice);
-    cudaMemcpy(dB, B, sizeof(float) * batch_count * k * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(dB, B, sizeof(float) * k * n, cudaMemcpyHostToDevice);
     cudaMemcpy(dC, C, sizeof(float) * batch_count * m * n, cudaMemcpyHostToDevice);
-
-    cublasGemmStridedBatchedEx(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha, dB, CUDA_R_32F,
-                n, (k * n), dA, CUDA_R_32F, k, (m * k), &beta, dC, CUDA_R_32F, n, (m * n), batch_count,
+    
+    cublasGemmStridedBatchedEx(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha, dA, CUDA_R_32F,
+                m, strideA, dB, CUDA_R_32F, k, strideB, &beta, dC, CUDA_R_32F, m, strideC, batch_count,
                 CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
 
     cudaDeviceSynchronize();

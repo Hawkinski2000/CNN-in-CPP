@@ -966,7 +966,8 @@ int main() {
     z *= 2;
     cout << "The tensor z contains:" << endl << z << endl;    
     z = y.matmul(z);
-    cout << "After applying matmul to tensors y and z and storing the result in z, the tensor z now contains:" << endl << z << endl << endl;
+    cout << "After applying matmul to tensors y and z and storing the result in z, the tensor z now contains:" << endl << z << endl;
+    cout << "The tensor z has the shape: " << z.shape_str() << endl << endl;
 
     Tensor X = Tensor::ones({1, 784});
     X *= 0.5;
