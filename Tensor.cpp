@@ -9,6 +9,7 @@ using namespace std;
 /*
 ==============================================================================
 TODO:
+    - matmul() (broadcasting).
     - Multiple Tensor data types.
     - pow() (floats and negatives as exponents).
     - squeeze()/unsqueeze().
@@ -356,25 +357,6 @@ bool Tensor::equal(const Tensor& other) {
     }
     return false;
 }
-
-// Function to return the matrix product of two tensors.
-// Tensor Tensor::matmul(Tensor& other) {
-//     if (dimensions[1] != other.dimensions[0]) {
-//         throw runtime_error("Matrix shapes cannot be multiplied.");
-//     }
-//     Tensor A = *this;
-//     Tensor result = Tensor::empty({dimensions[0], other.dimensions[1]});
-//     for (size_t i = 0; i < result.total_elements; i++) {
-//         float temp = 0;
-//         size_t row = i / dimensions[1];
-//         size_t col = i % dimensions[1];
-//         for (size_t j = 0; j < dimensions[1]; j++) {
-//             temp += A[0][0] * other[j][col];
-//         }
-//         result[row][col] = temp;
-//     }
-//     return result;
-// }
 
 // ---------------------------------------------------------------------------
 
@@ -977,14 +959,31 @@ int main() {
     equal = w.equal(x);
     cout << "The result of applying equal() to tensor w and tensor x is: " << equal << endl << endl;
 
-    Tensor y = Tensor::ones({2, 4});
+    Tensor y = Tensor::ones({4, 2, 4});
     y *= 3;
     cout << "The tensor y contains:" << endl << y << endl;
-    Tensor z = Tensor::ones({4, 2});
+    Tensor z = Tensor::ones({4, 4, 2});
     z *= 2;
     cout << "The tensor z contains:" << endl << z << endl;    
     z = y.matmul(z);
-    cout << "After applying matmul to tensors y and z and storing the result in z, the tensor z now contains:" << endl << z << endl;
+    cout << "After applying matmul to tensors y and z and storing the result in z, the tensor z now contains:" << endl << z << endl << endl;
+
+    Tensor X = Tensor::ones({1, 784});
+    X *= 0.5;
+    cout << "The tensor X has the shape: " << X.shape_str() << endl;
+    Tensor W1 = Tensor::ones({784, 256});
+    W1 *= 0.01;
+    X = X.matmul(W1);
+    cout << "The tensor X has the shape: " << X.shape_str() << endl;
+    Tensor W2 = Tensor::ones({256, 64});
+    W2 *= 0.01;
+    X = X.matmul(W2);
+    cout << "The tensor X has the shape: " << X.shape_str() << endl;
+    Tensor W3 = Tensor::ones({64, 10});
+    W3 *= 0.01;
+    X = X.matmul(W3);
+    cout << "The tensor X has the shape: " << X.shape_str() << endl;
+    cout << "The tensor X contains: " << X << endl << endl;
 
     return 0;
 }
