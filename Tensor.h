@@ -1,10 +1,11 @@
 #pragma once
-
-#include <iostream>
 #include <vector>
 #include <memory>
+#include "Node.h" 
 using namespace std;
 
+
+class Node;
 
 class Tensor {
     public:
@@ -138,7 +139,7 @@ class Tensor {
         // ---------------------------------------------------------------------------
 
         // Overload the + operator for element-wise addition between tensors
-        Tensor operator+(const Tensor& other);
+        Tensor operator+(Tensor& other);
 
         // Overload the + operator for element-wise addition between tensors and scalars
         Tensor operator+(float value);
@@ -201,6 +202,17 @@ class Tensor {
 
         // Function to return a tensor's shape as a string
         string shape_str();
+
+        // ---------------------------------------------------------------------------
+
+        // Function to call Engine::run_backward() to compute the gradient of the current tensor w.r.t. graph leaves.
+        void backward();
+        
+        // ---------------------------------------------------------------------------
+
+        float grad = 0;
+        bool requires_grad = true;
+        shared_ptr<Node> node = nullptr;
 
     private:
         // Constructor for Tensor class used by creation methods that specify a shape as an initializer_list

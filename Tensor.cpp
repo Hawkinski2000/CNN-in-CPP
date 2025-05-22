@@ -1,15 +1,15 @@
 #include <iostream>
 #include <memory>
 #include "Tensor.h"
+#include "Engine.h"
 using namespace std;
 
 
-// Compile with: nvcc -o Tensor Tensor.cpp matmul.cu -lcublas
+// Compile with: nvcc -o Tensor Tensor.cpp Node.cpp Engine.cpp matmul.cu -lcublas
 
 /*
 ==============================================================================
 TODO:
-    - matmul() (broadcasting).
     - Multiple Tensor data types.
     - pow() (floats and negatives as exponents).
     - squeeze()/unsqueeze().
@@ -447,7 +447,7 @@ bool Tensor::next_index(vector<size_t>& indices, const vector<size_t>& result_di
 // ---------------------------------------------------------------------------
 
 // Overload the + operator for element-wise addition between tensors
-Tensor Tensor::operator+(const Tensor& other) {
+Tensor Tensor::operator+(Tensor& other) {
     Tensor result;
 
     // Need to perform broadcasting since the tensors have different shapes
@@ -478,6 +478,9 @@ Tensor Tensor::operator+(const Tensor& other) {
             result.data.get()[i] += other.data.get()[i];
         }
     }
+
+    result.node = make_shared<AddBackward>(this, &other);
+    result.node->tensor = &result;
 
     return result;
 }
@@ -544,8 +547,6 @@ Tensor Tensor::operator-(const Tensor& other) {
 
     return result;
 }
-
-// ---------------------------------------------------------------------------
 
 // Overload the - operator for element-wise subtraction between tensors and scalars
 Tensor Tensor::operator-(float value) {
@@ -769,6 +770,14 @@ Tensor::TensorSlice::operator float&() {
 
 // ---------------------------------------------------------------------------
 
+// Function to call Engine::run_backward() to compute the gradient of the current tensor w.r.t. graph leaves.
+void Tensor::backward() {
+    grad = 1;
+    Engine::run_backward(node);
+}
+
+// ---------------------------------------------------------------------------
+
 
 int main() {
     Tensor a = Tensor::tensor({2, 4});
@@ -985,6 +994,26 @@ int main() {
     X = X.matmul(W3);
     cout << "The tensor X has the shape: " << X.shape_str() << endl;
     cout << "The tensor X contains: " << X << endl << endl;
+
+    Tensor A = Tensor::ones({2, 2});
+    cout << "The tensor A contains:" << endl << A << endl;
+    Tensor B = Tensor::ones({2, 2});
+    cout << "The tensor B contains:" << endl << B << endl;
+    Tensor C = A + B;
+    cout << "The tensor C contains:" << endl << C << endl;
+
+    Tensor D = Tensor::ones({2, 2});
+    cout << "The tensor D contains:" << endl << D << endl;
+    Tensor E = Tensor::ones({2, 2});
+    cout << "The tensor E contains:" << endl << E << endl;
+    Tensor F = D + E;
+    cout << "The tensor F contains:" << endl << F << endl;
+
+    Tensor G = C + F;
+    cout << "The tensor G contains:" << endl << G << endl;
+    cout << "The tensors A, B, C, D, E, and F which added to create the tensor G now have the gradients:" << endl;
+    G.backward();
+    cout << endl;
 
     return 0;
 }
