@@ -114,7 +114,7 @@ class Tensor {
         // Function to return the matrix product of two tensors.
         // This function uses code from Simon Boehm's repository, "SGEMM_CUDA":
         // https://github.com/siboehm/SGEMM_CUDA/tree/master
-        Tensor matmul(const Tensor& other);
+        Tensor matmul(Tensor& other);
 
         // ---------------------------------------------------------------------------
 
@@ -221,6 +221,15 @@ class Tensor {
         shared_ptr<Node> node = nullptr;
 
     private:
+        friend class Node;
+        friend class AddBackward;
+        friend class SubBackward;
+        friend class MulBackward;
+        friend class DivBackward;
+        friend class MatmulBackward;
+
+        // ---------------------------------------------------------------------------
+
         // Constructor for Tensor class used by creation methods that specify a shape as an initializer_list
         Tensor(initializer_list<size_t> dims);
 

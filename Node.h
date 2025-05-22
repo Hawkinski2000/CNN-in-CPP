@@ -82,3 +82,18 @@ class DivBackward : public Node {
         // Function to propagate gradients of a division node backward to child nodes
         void backward() override;
 };
+
+// ---------------------------------------------------------------------------
+
+// Node for matmul in the automatic differentiation graph that inherits from the Node class
+class MatmulBackward : public Node {
+    Tensor* lhs;
+    Tensor* rhs;
+
+    public:
+        // Constructor for the MatmulBackward class
+        MatmulBackward(Tensor* a, Tensor* b);
+
+        // Function to propagate gradients of a matmul node backward to child nodes
+        void backward() override;
+};

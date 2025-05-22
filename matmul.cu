@@ -11,7 +11,7 @@ This function uses code from Simon Boehm's repository, "SGEMM_CUDA":
 ==============================================================================
 */
 
-Tensor Tensor::matmul(const Tensor& other) {
+Tensor Tensor::matmul(Tensor& other) {
     cudaSetDevice(0);
     
     cublasHandle_t handle;
@@ -80,6 +80,11 @@ Tensor Tensor::matmul(const Tensor& other) {
         result = Tensor::empty({m, n});
     }
     result.data = shared_ptr<float>(C, default_delete<float[]>());
+    
+    if (requires_grad) {
+        result.node = make_shared<MatmulBackward>(this, &other);
+        result.node->tensor = &result;
+    }
 
     return result;
 }
