@@ -597,7 +597,7 @@ Tensor& Tensor::operator-=(float value) {
 // ---------------------------------------------------------------------------
 
 // Overload the * operator for element-wise multiplication between tensors
-Tensor Tensor::operator*(const Tensor& other) {
+Tensor Tensor::operator*(Tensor& other) {
     Tensor result;
 
     // Need to perform broadcasting since the tensors have different shapes
@@ -628,6 +628,9 @@ Tensor Tensor::operator*(const Tensor& other) {
             result.data.get()[i] *= other.data.get()[i];
         }
     }
+
+    result.node = make_shared<MulBackward>(this, &other);
+    result.node->tensor = &result;
 
     return result;
 }
@@ -660,7 +663,7 @@ Tensor& Tensor::operator*=(float value) {
 // ---------------------------------------------------------------------------
 
 // Overload the / operator for element-wise division between tensors
-Tensor Tensor::operator/(const Tensor& other) {
+Tensor Tensor::operator/(Tensor& other) {
     Tensor result;
 
     // Need to perform broadcasting since the tensors have different shapes
@@ -691,6 +694,9 @@ Tensor Tensor::operator/(const Tensor& other) {
             result.data.get()[i] /= other.data.get()[i];
         }
     }
+
+    result.node = make_shared<DivBackward>(this, &other);
+    result.node->tensor = &result;
     
     return result;
 }
@@ -756,6 +762,11 @@ string Tensor::shape_str() {
 // Function to return the total number of elements in a tensor
 size_t Tensor::numel() {
     return total_elements;
+}
+
+// Function to return the elements in a tensor
+const float* Tensor::get_data() const {
+    return data.get();
 }
 
 // ---------------------------------------------------------------------------
@@ -1022,20 +1033,23 @@ int main() {
     cout << "The tensor X contains: " << X << endl << endl;
 
     Tensor A = Tensor::ones({2, 2});
+    A *= 2;
     cout << "The tensor A contains:" << endl << A << endl;
     Tensor B = Tensor::ones({2, 2});
     cout << "The tensor B contains:" << endl << B << endl;
-    Tensor C = A + B;
+    Tensor C = A / B;
     cout << "The tensor C contains:" << endl << C << endl;
 
     Tensor D = Tensor::ones({2, 2});
+    D *= 3;
     cout << "The tensor D contains:" << endl << D << endl;
     Tensor E = Tensor::ones({2, 2});
+    E *= 4;
     cout << "The tensor E contains:" << endl << E << endl;
-    Tensor F = D + E;
+    Tensor F = D / E;
     cout << "The tensor F contains:" << endl << F << endl;
 
-    Tensor G = C + F;
+    Tensor G = C / F;
     cout << "The tensor G contains:" << endl << G << endl;
     cout << "The tensors A, B, C, D, E, and F which were subtracted to create the tensor G now have the gradients:" << endl;
     G.backward();

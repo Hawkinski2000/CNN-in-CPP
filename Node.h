@@ -52,3 +52,33 @@ class SubBackward : public Node {
         // Function to propagate gradients of a subtraction node backward to child nodes
         void backward() override;
 };
+
+// ---------------------------------------------------------------------------
+
+// Node for multiplication in the automatic differentiation graph that inherits from the Node class
+class MulBackward : public Node {
+    Tensor* lhs;
+    Tensor* rhs;
+
+    public:
+        // Constructor for the MulBackward class
+        MulBackward(Tensor* a, Tensor* b);
+
+        // Function to propagate gradients of a multiplication node backward to child nodes
+        void backward() override;
+};
+
+// ---------------------------------------------------------------------------
+
+// Node for division in the automatic differentiation graph that inherits from the Node class
+class DivBackward : public Node {
+    Tensor* lhs;
+    Tensor* rhs;
+
+    public:
+        // Constructor for the DivBackward class
+        DivBackward(Tensor* a, Tensor* b);
+
+        // Function to propagate gradients of a division node backward to child nodes
+        void backward() override;
+};

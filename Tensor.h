@@ -167,7 +167,7 @@ class Tensor {
         // ---------------------------------------------------------------------------
 
         // Overload the * operator for element-wise multiplication between tensors
-        Tensor operator*(const Tensor& other);
+        Tensor operator*(Tensor& other);
 
         // Overload the * operator for element-wise multiplication between tensors and scalars
         Tensor operator*(float value);
@@ -181,7 +181,7 @@ class Tensor {
         // ---------------------------------------------------------------------------
 
         // Overload the / operator for element-wise division between tensors
-        Tensor operator/(const Tensor& other);
+        Tensor operator/(Tensor& other);
 
         // Overload the / operator for element-wise division between tensors and scalars
         Tensor operator/(float value);
@@ -205,6 +205,9 @@ class Tensor {
 
         // Function to return the total number of elements in a tensor
         size_t numel();
+
+        // Function to return the elements in a tensor
+        const float* get_data() const;
 
         // ---------------------------------------------------------------------------
 
