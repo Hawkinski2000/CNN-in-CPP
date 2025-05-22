@@ -27,9 +27,38 @@ AddBackward::AddBackward(Tensor* a, Tensor* b) : lhs(a), rhs(b) {
     }
 }
 
-// Function to propagate gradients backward to child nodes
+// Function to propagate gradients of an addition node backward to child nodes
 void AddBackward::backward() {
-    lhs->grad += tensor->grad;
-    rhs->grad += tensor->grad;
-    cout << lhs->grad << " and " << rhs->grad << endl;
+    for (size_t i = 0; i < tensor->numel(); i++) {
+        lhs->grad.get()[i] += tensor->grad.get()[i];
+        rhs->grad.get()[i] += tensor->grad.get()[i];
+    }
+    for (size_t i = 0; i < tensor->numel(); i++) {
+        cout << lhs->grad.get()[i] << ", ";
+    }
+    cout << "and ";
+    for (size_t i = 0; i < tensor->numel(); i++) {
+        cout << rhs->grad.get()[i] << ", ";
+    }
+    cout << endl;
+}
+
+// ---------------------------------------------------------------------------
+
+// Constructor for the SubBackward class
+SubBackward::SubBackward(Tensor* a, Tensor* b) : lhs(a), rhs(b) {
+    if (lhs->node) {
+        children.push_back({lhs->node});
+    }
+    if (rhs->node) {
+        children.push_back({rhs->node});
+    }
+}
+
+// Function to propagate gradients of a subtraction node backward to child nodes
+void SubBackward::backward() {
+    for (size_t i = 0; i < tensor->numel(); i++) {
+        lhs->grad.get()[i] += tensor->grad.get()[i];
+        rhs->grad.get()[i] -= tensor->grad.get()[i];
+    }
 }

@@ -37,7 +37,9 @@ Tensor::Tensor(const Tensor& other) {
     total_elements = other.total_elements;
     strides = other.strides;    
     data = shared_ptr<float>(new float[other.total_elements], default_delete<float[]>());
-    copy(other.data.get(), other.data.get() + other.total_elements, data.get());   
+    copy(other.data.get(), other.data.get() + other.total_elements, data.get());
+    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+    fill(grad.get(), grad.get() + total_elements, 0);
 }
 
 // Move constructor for the Tensor class
@@ -47,6 +49,8 @@ Tensor::Tensor(Tensor&& other)
       strides(move(other.strides)),
       total_elements(other.total_elements) {
     other.total_elements = 0;
+    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+    fill(grad.get(), grad.get() + total_elements, 0);
 }
 
 // Constructor for Tensor class used by creation methods that specify a shape as an initializer_list
@@ -68,6 +72,9 @@ Tensor::Tensor(initializer_list<size_t> dims) {
 
     // Calculate strides from tensor dimensions
     strides = compute_strides(dimensions);
+
+    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+    fill(grad.get(), grad.get() + total_elements, 0);
 }
 
 // Constructor for Tensor class used by creation methods that specify a shape as a vector
@@ -89,6 +96,9 @@ Tensor::Tensor(const vector<size_t>& dims) {
 
     // Calculate strides from tensor dimensions
     strides = compute_strides(dimensions);
+
+    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+    fill(grad.get(), grad.get() + total_elements, 0);
 }
 
 // Constructor for Tensor class used by tensor() where values are specified
@@ -108,6 +118,9 @@ Tensor::Tensor(initializer_list<float> values) {
     dimensions = {values.size()};
     strides = {1};
     total_elements = values.size();
+
+    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+    fill(grad.get(), grad.get() + total_elements, 0);
 }
 
 // Constructor for Tensor class used by tensor() to convert a vector to a tensor
@@ -127,6 +140,9 @@ Tensor::Tensor(const vector<float>& values) {
     dimensions = {values.size()};
     strides = {1};
     total_elements = values.size();
+
+    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+    fill(grad.get(), grad.get() + total_elements, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -208,7 +224,9 @@ Tensor& Tensor::operator=(const Tensor& other) {
         strides = other.strides;
         total_elements = other.total_elements;
         data = shared_ptr<float>(new float[other.total_elements], default_delete<float[]>());
-        copy(other.data.get(), other.data.get() + other.total_elements, data.get());   
+        copy(other.data.get(), other.data.get() + other.total_elements, data.get());
+        grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+        copy(other.grad.get(), other.grad.get() + other.total_elements, grad.get());
     }
     return *this;
 }
@@ -513,7 +531,7 @@ Tensor& Tensor::operator+=(float value) {
 // ---------------------------------------------------------------------------
 
 // Overload the - operator for element-wise subtraction between tensors
-Tensor Tensor::operator-(const Tensor& other) {
+Tensor Tensor::operator-(Tensor& other) {
     Tensor result;
 
     // Need to perform broadcasting since the tensors have different shapes
@@ -544,6 +562,9 @@ Tensor Tensor::operator-(const Tensor& other) {
             result.data.get()[i] -= other.data.get()[i];
         }
     }
+
+    result.node = make_shared<SubBackward>(this, &other);
+    result.node->tensor = &result;
 
     return result;
 }
@@ -732,6 +753,11 @@ string Tensor::shape_str() {
     return shape;
 }
 
+// Function to return the total number of elements in a tensor
+size_t Tensor::numel() {
+    return total_elements;
+}
+
 // ---------------------------------------------------------------------------
 
 // Constructor for TensorSlice class used for chaining multiple [] operators
@@ -772,7 +798,7 @@ Tensor::TensorSlice::operator float&() {
 
 // Function to call Engine::run_backward() to compute the gradient of the current tensor w.r.t. graph leaves.
 void Tensor::backward() {
-    grad = 1;
+    fill(grad.get(), grad.get() + total_elements, 1);
     Engine::run_backward(node);
 }
 
@@ -1011,7 +1037,7 @@ int main() {
 
     Tensor G = C + F;
     cout << "The tensor G contains:" << endl << G << endl;
-    cout << "The tensors A, B, C, D, E, and F which added to create the tensor G now have the gradients:" << endl;
+    cout << "The tensors A, B, C, D, E, and F which were subtracted to create the tensor G now have the gradients:" << endl;
     G.backward();
     cout << endl;
 

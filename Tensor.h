@@ -153,7 +153,7 @@ class Tensor {
         // ---------------------------------------------------------------------------
 
         // Overload the - operator for element-wise subtraction between tensors
-        Tensor operator-(const Tensor& other);
+        Tensor operator-(Tensor& other);
 
         // Overload the - operator for element-wise subtraction between tensors and scalars
         Tensor operator-(float value);
@@ -203,6 +203,9 @@ class Tensor {
         // Function to return a tensor's shape as a string
         string shape_str();
 
+        // Function to return the total number of elements in a tensor
+        size_t numel();
+
         // ---------------------------------------------------------------------------
 
         // Function to call Engine::run_backward() to compute the gradient of the current tensor w.r.t. graph leaves.
@@ -210,8 +213,8 @@ class Tensor {
         
         // ---------------------------------------------------------------------------
 
-        float grad = 0;
         bool requires_grad = true;
+        shared_ptr<float> grad;
         shared_ptr<Node> node = nullptr;
 
     private:
