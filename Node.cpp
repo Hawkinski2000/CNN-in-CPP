@@ -122,9 +122,61 @@ void MatmulBackward::backward() {
     Tensor dLda = dLdc.matmul(b_T);
     Tensor dLdb = a_T.matmul(dLdc);
 
-    for (size_t i = 0; i < dLdc.total_elements; i++) {
-        lhs->grad.get()[i % lhs->total_elements] += dLda.data.get()[i % lhs->total_elements];
-        rhs->grad.get()[i % rhs->total_elements] += dLdb.data.get()[i % rhs->total_elements];
+    size_t A_batch_count = 1;
+    if (lhs->dimensions.size() > 2) {
+        for (size_t i = 0; i < lhs->dimensions.size() - 2; i++) {
+            A_batch_count *= lhs->dimensions[i];
+        }
+    } else {
+        A_batch_count = 1;
+    }
+    size_t B_batch_count = 1;
+    if (rhs->dimensions.size() > 2) {
+        for (size_t i = 0; i < rhs->dimensions.size() - 2; i++) {
+            B_batch_count *= rhs->dimensions[i];
+        }
+    } else {
+        B_batch_count = 1;
+    }
+    size_t C_batch_count = 1;
+    if (tensor->dimensions.size() > 2) {
+        for (size_t i = 0; i < tensor->dimensions.size() - 2; i++) {
+            C_batch_count *= tensor->dimensions[i];
+        }
+    } else {
+        C_batch_count = 1;
+    }
+
+    size_t m = lhs->dimensions[lhs->dimensions.size() - 2];
+    size_t k = lhs->dimensions[lhs->dimensions.size() - 1];
+    size_t n = rhs->dimensions[rhs->dimensions.size() - 1];
+    if (C_batch_count > A_batch_count && C_batch_count > B_batch_count) {
+        for (size_t i = 0; i < C_batch_count * m * k; i++) {
+            lhs->grad.get()[i % lhs->total_elements] += dLda.data.get()[i % lhs->total_elements];
+        }
+        for (size_t i = 0; i < C_batch_count * k * n; i++) {
+            rhs->grad.get()[i % rhs->total_elements] += dLdb.data.get()[i % rhs->total_elements];
+        }
+    }
+    else if (A_batch_count > B_batch_count) {
+        for (size_t i = 0; i < lhs->total_elements; i++) {
+            lhs->grad.get()[i] += dLda.data.get()[i];
+            rhs->grad.get()[i % rhs->total_elements] += dLdb.data.get()[i % rhs->total_elements];
+        }
+    }
+    else if (B_batch_count > A_batch_count) {
+        for (size_t i = 0; i < rhs->total_elements; i++) {
+            lhs->grad.get()[i % lhs->total_elements] += dLda.data.get()[i % lhs->total_elements];
+            rhs->grad.get()[i] += dLdb.data.get()[i];
+        }
+    }
+    else {
+        for (size_t i = 0; i < lhs->total_elements; i++) {
+            lhs->grad.get()[i] += dLda.data.get()[i];
+        }
+        for (size_t i = 0; i < rhs->total_elements; i++) {
+            rhs->grad.get()[i] += dLdb.data.get()[i];
+        }
     }
 
     for (size_t i = 0; i < lhs->total_elements; i++) {

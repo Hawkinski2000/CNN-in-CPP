@@ -17,6 +17,13 @@ Tensor Tensor::matmul(Tensor& other) {
     cublasHandle_t handle;
     cublasCreate(&handle);
 
+    if (dimensions.size() == 1) {
+        dimensions = {1, dimensions[0]};
+    }
+    if (other.dimensions.size() == 1) {
+        other.dimensions = {1, other.dimensions[0]};
+    }
+
     size_t m, n, k;
     m = dimensions[dimensions.size() - 2];
     k = dimensions[dimensions.size() - 1];

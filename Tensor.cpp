@@ -1,17 +1,17 @@
 #include <iostream>
 #include <memory>
+#include <random>
+#include <cmath>
 #include "Tensor.h"
 #include "Engine.h"
 using namespace std;
 
 
-// Compile with: nvcc -o Tensor Tensor.cpp Node.cpp Engine.cpp matmul.cu -lcublas
+// Compile with: nvcc -o Tensor Tensor.cpp Node.cpp Engine.cpp nn.cpp matmul.cu -lcublas
 
 /*
 ==============================================================================
 TODO:
-    - matmul() currently only broadcasts the rhs Tensor. Allow it to broadcast
-      both the lhs and rhs.
     - Multiple Tensor data types.
     - pow() (floats and negatives as exponents).
     - squeeze()/unsqueeze().
@@ -53,6 +53,7 @@ Tensor::Tensor(Tensor&& other)
     other.total_elements = 0;
     grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
     fill(grad.get(), grad.get() + total_elements, 0);
+    node = other.node;
 }
 
 // Constructor for Tensor class used by creation methods that specify a shape as an initializer_list
@@ -187,6 +188,38 @@ Tensor Tensor::ones(vector<size_t> dims) {
     return tensor;
 }
 
+// Function to create a tensor of random values from a specified shape
+Tensor Tensor::rand(initializer_list<size_t> dims, size_t in_features) {
+    Tensor tensor(dims);
+    if (in_features == 0) {
+        in_features = tensor.dimensions[0];
+    }
+    float limit = sqrt(6.0f / in_features);
+    random_device rd;
+    mt19937 gen(rd()); // Mersenne Twister RNG
+    uniform_real_distribution<float> dist(-limit, limit);
+    for (size_t i = 0; i < tensor.total_elements; i++) {
+        tensor.data.get()[i] = dist(gen); 
+    }
+    return tensor;
+}
+
+// Function to create a tensor of random values from a shape specified as a vector
+Tensor Tensor::rand(vector<size_t> dims, size_t in_features) {
+    Tensor tensor(dims);
+    if (in_features == 0) {
+        in_features = tensor.dimensions[0];
+    }
+    float limit = sqrt(6.0f / in_features);
+    random_device rd;
+    mt19937 gen(rd()); // Mersenne Twister RNG
+    uniform_real_distribution<float> dist(-limit, limit);
+    for (size_t i = 0; i < tensor.total_elements; i++) {
+        tensor.data.get()[i] = dist(gen); 
+    }
+    return tensor;
+}
+
 // Function to create a tensor from specified values
 Tensor Tensor::tensor(initializer_list<float> values) {
     return Tensor(values);
@@ -216,6 +249,7 @@ Tensor& Tensor::operator=(Tensor&& other) {
         total_elements = other.total_elements;
         other.total_elements = 0;
         grad = move(other.grad);
+        node = other.node;
     }
     return *this;
 }
@@ -287,25 +321,23 @@ Tensor Tensor::flatten() {
 
 // Function to return a tensor that is a transposed version of a tensor
 Tensor Tensor::transpose(size_t dim0, size_t dim1) {
-    Tensor result;
-
-    // The new tensor shares the same data as the original tensor
-    result.data = data;
+    Tensor result = *this;
 
     // Get lengths of specified dimensions
     size_t size0 = dimensions[dim0];
     size_t size1 = dimensions[dim1];
 
-    result.dimensions = dimensions;
-
     // Swap the specified dimensions in the new tensor
     result.dimensions[dim0] = size1;
     result.dimensions[dim1] = size0;
 
-    // Calculate strides of the new tensor from its dimensions
-    result.strides = compute_strides(result.dimensions);
+    // Get strides of specified dimensions
+    size_t stride0 = strides[dim0];
+    size_t stride1 = strides[dim1];
 
-    result.total_elements = total_elements;
+    // Swap the strides in the new tensor
+    result.strides[dim0] = stride1;
+    result.strides[dim1] = stride0;
 
     return result;
 }
@@ -364,6 +396,17 @@ Tensor Tensor::max() {
     }
     result[0] = max;
     return result;
+}
+
+// Function to return the index of the maximum value of all elements in a tensor
+size_t Tensor::argmax() {
+    size_t idx = 0;
+    for (size_t i = 1; i < total_elements; i++) {
+        if (data.get()[i] > data.get()[idx]) {
+            idx = i;
+        }
+    }
+    return idx;
 }
 
 // Function to return true if two tensors have the same shape and elements, otherwise false.
@@ -1043,10 +1086,10 @@ int main() {
     cout << "The tensor X has the shape: " << X.shape_str() << endl;
     cout << "The tensor X contains: " << X << endl << endl;
 
-    Tensor A = Tensor::ones({2, 2});
+    Tensor A = Tensor::ones({2, 4});
     A *= 2;
     cout << "The tensor A contains:" << endl << A << endl;
-    Tensor B = Tensor::ones({2, 2});
+    Tensor B = Tensor::ones({4, 2});
     cout << "The tensor B contains:" << endl << B << endl;
     Tensor C = A.matmul(B);
     cout << "The tensor C contains:" << endl << C << endl;
@@ -1061,9 +1104,7 @@ int main() {
 
     Tensor G = C.matmul(F);
     cout << "The tensor G contains:" << endl << G << endl;
-    cout << "The tensors A, B, C, D, E, and F which were subtracted to create the tensor G now have the gradients:" << endl;
+    cout << "The tensors A, B, C, D, E, and F which were multiplied with matmul() to create the tensor G now have the gradients:" << endl;
     G.backward();
     cout << endl;
-
-    return 0;
 }
