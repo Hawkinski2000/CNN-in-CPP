@@ -119,18 +119,19 @@ void MatmulBackward::backward() {
     Tensor b_T = rhs->transpose(bdim0, bdim1);
     Tensor a_T = lhs->transpose(adim0, adim1);
 
-    shared_ptr<float> dLda = dLdc.matmul(b_T).data;
-    shared_ptr<float> dLdb = a_T.matmul(dLdc).data;
+    Tensor dLda = dLdc.matmul(b_T);
+    Tensor dLdb = a_T.matmul(dLdc);
 
-    for (size_t i = 0; i < tensor->total_elements; i++) {
-        lhs->grad.get()[i] += dLda.get()[i];
-        rhs->grad.get()[i] += dLdb.get()[i];
+    for (size_t i = 0; i < dLdc.total_elements; i++) {
+        lhs->grad.get()[i % lhs->total_elements] += dLda.data.get()[i % lhs->total_elements];
+        rhs->grad.get()[i % rhs->total_elements] += dLdb.data.get()[i % rhs->total_elements];
     }
-    for (size_t i = 0; i < tensor->total_elements; i++) {
+
+    for (size_t i = 0; i < lhs->total_elements; i++) {
         cout << lhs->grad.get()[i] << ", ";
     }
     cout << "and ";
-    for (size_t i = 0; i < tensor->total_elements; i++) {
+    for (size_t i = 0; i < rhs->total_elements; i++) {
         cout << rhs->grad.get()[i] << ", ";
     }
     cout << endl;

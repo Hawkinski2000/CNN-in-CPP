@@ -10,6 +10,8 @@ using namespace std;
 /*
 ==============================================================================
 TODO:
+    - matmul() currently only broadcasts the rhs Tensor. Allow it to broadcast
+      both the lhs and rhs.
     - Multiple Tensor data types.
     - pow() (floats and negatives as exponents).
     - squeeze()/unsqueeze().
