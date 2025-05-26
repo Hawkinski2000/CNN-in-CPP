@@ -2,6 +2,7 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 #include "Tensor.h"
+#include "Node.h"
 
 
 /*
@@ -11,7 +12,7 @@ This function uses code from Simon Boehm's repository, "SGEMM_CUDA":
 ==============================================================================
 */
 
-Tensor Tensor::matmul(Tensor& other) {
+Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b) {
     cudaSetDevice(0);
     
     cublasHandle_t handle;
@@ -133,8 +134,24 @@ Tensor Tensor::matmul(Tensor& other) {
 
     float alpha = 1, beta = 0; // GEMM input parameters, C=α*AB+β*C
     
-    cublasGemmStridedBatchedEx(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha, dA, CUDA_R_32F,
-                m, strideA, dB, CUDA_R_32F, k, strideB, &beta, dC, CUDA_R_32F, m, strideC, batch_count,
+    auto transa = CUBLAS_OP_N;
+    auto transb = CUBLAS_OP_N;
+    size_t lda = m;
+    size_t ldb = k;
+    if (transpose_a) {
+        transa = CUBLAS_OP_T;
+        m = dimensions[1];
+        k = dimensions[0];
+        lda = k;
+    }
+    if (transpose_b) {
+        transb = CUBLAS_OP_T;
+        n = other.dimensions[0];
+        ldb = n;
+    }
+
+    cublasGemmStridedBatchedEx(handle, transa, transb, m, n, k, &alpha, dA, CUDA_R_32F,
+                lda, strideA, dB, CUDA_R_32F, ldb, strideB, &beta, dC, CUDA_R_32F, m, strideC, batch_count,
                 CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
 
     cudaDeviceSynchronize();
