@@ -12,7 +12,7 @@ This function uses code from Simon Boehm's repository, "SGEMM_CUDA":
 ==============================================================================
 */
 
-Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b) {
+Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool create_node) {
     cudaSetDevice(0);
     
     cublasHandle_t handle;
@@ -29,6 +29,9 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b) {
     m = dimensions[dimensions.size() - 2];
     k = dimensions[dimensions.size() - 1];
     n = other.dimensions[other.dimensions.size() - 1];
+
+    size_t lda = m;
+    size_t ldb = other.dimensions[other.dimensions.size() - 2];
 
     vector<size_t> A_batch_dims;
     if (dimensions.size() > 2) {
@@ -52,6 +55,18 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b) {
         B_batch_count *= dim;
     }
 
+    auto transa = CUBLAS_OP_N;
+    auto transb = CUBLAS_OP_N;
+    if (transpose_a) {
+        transa = CUBLAS_OP_T;
+        m = dimensions[dimensions.size() - 1];
+        k = dimensions[dimensions.size() - 2];
+    }
+    if (transpose_b) {
+        transb = CUBLAS_OP_T;
+        n = other.dimensions[other.dimensions.size() - 2];
+    }
+
     size_t strideA = m * k, strideB = k * n, strideC = m * n;
     if (A_batch_dims.size() == 1 && A_batch_dims[0] == 1) {
         strideA = 0;
@@ -59,7 +74,7 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b) {
     else if (B_batch_dims.size() == 1 && B_batch_dims[0] == 1) {
         strideB = 0;
     }
-    
+
     size_t batch_count = 1;
     size_t A_copies = 1;
     size_t B_copies = 1;
@@ -133,22 +148,6 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b) {
     cudaMemcpy(dC, C, C_mem, cudaMemcpyHostToDevice);
 
     float alpha = 1, beta = 0; // GEMM input parameters, C=α*AB+β*C
-    
-    auto transa = CUBLAS_OP_N;
-    auto transb = CUBLAS_OP_N;
-    size_t lda = m;
-    size_t ldb = k;
-    if (transpose_a) {
-        transa = CUBLAS_OP_T;
-        m = dimensions[1];
-        k = dimensions[0];
-        lda = k;
-    }
-    if (transpose_b) {
-        transb = CUBLAS_OP_T;
-        n = other.dimensions[0];
-        ldb = n;
-    }
 
     cublasGemmStridedBatchedEx(handle, transa, transb, m, n, k, &alpha, dA, CUDA_R_32F,
                 lda, strideA, dB, CUDA_R_32F, ldb, strideB, &beta, dC, CUDA_R_32F, m, strideC, batch_count,
@@ -175,10 +174,12 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b) {
     }
 
     result.data = shared_ptr<float>(C, default_delete<float[]>());
-    
-    if (requires_grad) {
-        result.node = make_shared<MatmulBackward>(this, &other);
-        result.node->tensor = &result;
+
+    if (create_node) {
+        if (requires_grad || other.requires_grad) {
+            result.node = make_shared<MatmulBackward>(this, &other);
+            result.node->tensor = &result;
+        }
     }
 
     return result;
