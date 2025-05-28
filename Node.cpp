@@ -19,7 +19,7 @@ void Node::backward() {};
 // ---------------------------------------------------------------------------
 
 // Constructor for the AddBackward class
-AddBackward::AddBackward(Tensor* a, Tensor* b) : lhs(a), rhs(b) {
+AddBackward::AddBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_shared<Tensor>(*a)), rhs(b) {
     if (lhs->node) {
         children.push_back({lhs->node});
     }
@@ -34,12 +34,23 @@ void AddBackward::backward() {
         lhs->grad.get()[i] += tensor->grad.get()[i];
         rhs->grad.get()[i] += tensor->grad.get()[i];
     }
+
+    // cout << "===============================================================================" << endl;
+    // cout << "An AddBackward node has the gradients:" << endl;
+    // for (size_t i = 0; i < lhs->total_elements; i++) {
+    //     cout << lhs->grad.get()[i] << ", ";
+    // }
+    // cout << "and ";
+    // for (size_t i = 0; i < rhs->total_elements; i++) {
+    //     cout << rhs->grad.get()[i] << ", ";
+    // }
+    // cout << endl << "===============================================================================" << endl;
 }
 
 // ---------------------------------------------------------------------------
 
 // Constructor for the SubBackward class
-SubBackward::SubBackward(Tensor* a, Tensor* b) : lhs(a), rhs(b) {
+SubBackward::SubBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_shared<Tensor>(*a)), rhs(b) {
     if (lhs->node) {
         children.push_back({lhs->node});
     }
@@ -59,7 +70,7 @@ void SubBackward::backward() {
 // ---------------------------------------------------------------------------
 
 // Constructor for the MulBackward class
-MulBackward::MulBackward(Tensor* a, Tensor* b) : lhs(a), rhs(b) {
+MulBackward::MulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_shared<Tensor>(*a)), rhs(b) {
     if (lhs->node) {
         children.push_back({lhs->node});
     }
@@ -79,7 +90,7 @@ void MulBackward::backward() {
 // ---------------------------------------------------------------------------
 
 // Constructor for the DivBackward class
-DivBackward::DivBackward(Tensor* a, Tensor* b) : lhs(a), rhs(b) {
+DivBackward::DivBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_shared<Tensor>(*a)), rhs(b) {
     if (lhs->node) {
         children.push_back({lhs->node});
     }
@@ -99,7 +110,7 @@ void DivBackward::backward() {
 // ---------------------------------------------------------------------------
 
 // Constructor for the MatmulBackward class
-MatmulBackward::MatmulBackward(Tensor* a, Tensor* b) : lhs(a), rhs(b) {
+MatmulBackward::MatmulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_shared<Tensor>(*a)), rhs(b) {
     if (lhs->node) {
         children.push_back({lhs->node});
     }
@@ -112,15 +123,9 @@ MatmulBackward::MatmulBackward(Tensor* a, Tensor* b) : lhs(a), rhs(b) {
 void MatmulBackward::backward() {
     Tensor dLdc = *tensor;
     copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdc.data.get());
-    dLdc.requires_grad = false;
 
-    size_t adim0 = lhs->dimensions.size() - 2, adim1 = lhs->dimensions.size() - 1;
-    size_t bdim0 = rhs->dimensions.size() - 2, bdim1 = rhs->dimensions.size() - 1;
-    Tensor b_T = rhs->transpose(bdim0, bdim1);
-    Tensor a_T = lhs->transpose(adim0, adim1);
-
-    Tensor dLda = dLdc.matmul(b_T);
-    Tensor dLdb = a_T.matmul(dLdc);
+    Tensor dLda = dLdc.matmul(*rhs, false, true, false);
+    Tensor dLdb = lhs->matmul(dLdc, true, false, false);
 
     size_t A_batch_count = 1;
     if (lhs->dimensions.size() > 2) {
@@ -150,41 +155,66 @@ void MatmulBackward::backward() {
     size_t m = lhs->dimensions[lhs->dimensions.size() - 2];
     size_t k = lhs->dimensions[lhs->dimensions.size() - 1];
     size_t n = rhs->dimensions[rhs->dimensions.size() - 1];
+    // A and B were both broadcast
     if (C_batch_count > A_batch_count && C_batch_count > B_batch_count) {
-        for (size_t i = 0; i < C_batch_count * m * k; i++) {
-            lhs->grad.get()[i % lhs->total_elements] += dLda.data.get()[i % lhs->total_elements];
+        if (lhs->requires_grad) {
+            for (size_t i = 0; i < C_batch_count * m * k; i++) {
+                lhs->grad.get()[i % lhs->total_elements] += dLda.data.get()[i % lhs->total_elements];
+            }
         }
-        for (size_t i = 0; i < C_batch_count * k * n; i++) {
-            rhs->grad.get()[i % rhs->total_elements] += dLdb.data.get()[i % rhs->total_elements];
+        if (rhs->requires_grad) {
+            for (size_t i = 0; i < C_batch_count * k * n; i++) {
+                rhs->grad.get()[i % rhs->total_elements] += dLdb.data.get()[i % rhs->total_elements];
+            }
         }
     }
+    // Only B was broadcast
     else if (A_batch_count > B_batch_count) {
-        for (size_t i = 0; i < lhs->total_elements; i++) {
-            lhs->grad.get()[i] += dLda.data.get()[i];
-            rhs->grad.get()[i % rhs->total_elements] += dLdb.data.get()[i % rhs->total_elements];
+        if (lhs->requires_grad) {
+            for (size_t i = 0; i < lhs->total_elements; i++) {
+                lhs->grad.get()[i] += dLda.data.get()[i];
+            }
+        }
+        if (rhs->requires_grad) {
+            for (size_t i = 0; i < C_batch_count * k * n; i++) {
+                rhs->grad.get()[i % rhs->total_elements] += dLdb.data.get()[i % rhs->total_elements];
+            }
         }
     }
+    // Only A was broadcast
     else if (B_batch_count > A_batch_count) {
-        for (size_t i = 0; i < rhs->total_elements; i++) {
-            lhs->grad.get()[i % lhs->total_elements] += dLda.data.get()[i % lhs->total_elements];
-            rhs->grad.get()[i] += dLdb.data.get()[i];
+        if (lhs->requires_grad) {
+            for (size_t i = 0; i < C_batch_count * m * k; i++) {
+                lhs->grad.get()[i % lhs->total_elements] += dLda.data.get()[i % lhs->total_elements];
+            }
+        }
+        if (rhs->requires_grad) {
+            for (size_t i = 0; i < rhs->total_elements; i++) {
+                rhs->grad.get()[i] += dLdb.data.get()[i];
+            }
         }
     }
     else {
-        for (size_t i = 0; i < lhs->total_elements; i++) {
-            lhs->grad.get()[i] += dLda.data.get()[i];
+        if (lhs->requires_grad) {
+            for (size_t i = 0; i < lhs->total_elements; i++) {
+                lhs->grad.get()[i] += dLda.data.get()[i];
+            }
         }
-        for (size_t i = 0; i < rhs->total_elements; i++) {
-            rhs->grad.get()[i] += dLdb.data.get()[i];
+        if (rhs->requires_grad) {
+            for (size_t i = 0; i < rhs->total_elements; i++) {
+                rhs->grad.get()[i] += dLdb.data.get()[i];
+            }
         }
     }
 
-    for (size_t i = 0; i < lhs->total_elements; i++) {
-        cout << lhs->grad.get()[i] << ", ";
-    }
-    cout << "and ";
-    for (size_t i = 0; i < rhs->total_elements; i++) {
-        cout << rhs->grad.get()[i] << ", ";
-    }
-    cout << endl;
+    // cout << "===============================================================================" << endl;
+    // cout << "A MatmulBackward node has the gradients:" << endl;
+    // for (size_t i = 0; i < lhs->total_elements; i++) {
+    //     cout << lhs->grad.get()[i] << ", ";
+    // }
+    // cout << "and ";
+    // for (size_t i = 0; i < rhs->total_elements; i++) {
+    //     cout << rhs->grad.get()[i] << ", ";
+    // }
+    // cout << endl << "===============================================================================" << endl;
 }

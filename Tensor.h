@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <memory>
-#include "Node.h" 
+// #include "Node.h"
 using namespace std;
 
 
@@ -63,6 +63,12 @@ class Tensor {
         // Function to create tensor of ones from a shape specified as a vector
         static Tensor ones(vector<size_t> dims);
 
+        // Function to create a tensor of random values from a specified shape
+        static Tensor rand(initializer_list<size_t> dims, size_t in_features = 0);
+
+        // Function to create tensor of random values from a shape specified as a vector
+        static Tensor rand(vector<size_t> dims, size_t in_features = 0);
+
         // Function to create a tensor from specified values
         static Tensor tensor(initializer_list<float> values);
 
@@ -108,13 +114,16 @@ class Tensor {
         // Function to return the maximum value of all elements in a tensor
         Tensor max();
 
+        // Function to return the index of the maximum value of all elements in a tensor
+        size_t argmax();
+
         // Function to return true if two tensors have the same shape and elements, otherwise false.
         bool equal(const Tensor& other);
 
         // Function to return the matrix product of two tensors.
         // This function uses code from Simon Boehm's repository, "SGEMM_CUDA":
         // https://github.com/siboehm/SGEMM_CUDA/tree/master
-        Tensor matmul(Tensor& other);
+        Tensor matmul(Tensor& other, bool transpose_a=false, bool transpose_b=false, bool create_node=true);
 
         // ---------------------------------------------------------------------------
 
@@ -217,7 +226,7 @@ class Tensor {
         // ---------------------------------------------------------------------------
 
         bool requires_grad = true;
-        shared_ptr<float> grad;
+        shared_ptr<float> grad = nullptr;
         shared_ptr<Node> node = nullptr;
 
     private:

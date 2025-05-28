@@ -177,10 +177,10 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
 
     if (create_node) {
         if (requires_grad || other.requires_grad) {
-            result.node = make_shared<MatmulBackward>(this, &other);
+            result.node = make_shared<MatmulBackward>(make_shared<Tensor>(*this), make_shared<Tensor>(other));
             result.node->tensor = &result;
         }
     }
-
+    
     return result;
 }

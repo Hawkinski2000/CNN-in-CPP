@@ -19,7 +19,11 @@ class Node {
         // Function to propagate gradients backward to child nodes
         virtual void backward();
 
-        Tensor* tensor;
+        virtual string name() {
+            return "Node";
+        }
+
+        Tensor* tensor = nullptr;
         vector<shared_ptr<Node>> children;
 };
 
@@ -27,73 +31,93 @@ class Node {
 
 // Node for addition in the automatic differentiation graph that inherits from the Node class
 class AddBackward : public Node {
-    Tensor* lhs;
-    Tensor* rhs;
+    shared_ptr<Tensor> lhs;
+    shared_ptr<Tensor> rhs;
 
     public:
         // Constructor for the AddBackward class
-        AddBackward(Tensor* a, Tensor* b);
+        AddBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b);
 
         // Function to propagate gradients of an addition node backward to child nodes
         void backward() override;
+
+        string name() override {
+            return "AddBackward";
+        }
 };
 
 // ---------------------------------------------------------------------------
 
 // Node for subtraction in the automatic differentiation graph that inherits from the Node class
 class SubBackward : public Node {
-    Tensor* lhs;
-    Tensor* rhs;
+    shared_ptr<Tensor> lhs;
+    shared_ptr<Tensor> rhs;
 
     public:
         // Constructor for the SubBackward class
-        SubBackward(Tensor* a, Tensor* b);
+        SubBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b);
 
         // Function to propagate gradients of a subtraction node backward to child nodes
         void backward() override;
+
+        string name() override {
+            return "SubBackward";
+        }
 };
 
 // ---------------------------------------------------------------------------
 
 // Node for multiplication in the automatic differentiation graph that inherits from the Node class
 class MulBackward : public Node {
-    Tensor* lhs;
-    Tensor* rhs;
+    shared_ptr<Tensor> lhs;
+    shared_ptr<Tensor> rhs;
 
     public:
         // Constructor for the MulBackward class
-        MulBackward(Tensor* a, Tensor* b);
+        MulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b);
 
         // Function to propagate gradients of a multiplication node backward to child nodes
         void backward() override;
+
+        string name() override {
+            return "MulBackward";
+        }
 };
 
 // ---------------------------------------------------------------------------
 
 // Node for division in the automatic differentiation graph that inherits from the Node class
 class DivBackward : public Node {
-    Tensor* lhs;
-    Tensor* rhs;
+    shared_ptr<Tensor> lhs;
+    shared_ptr<Tensor> rhs;
 
     public:
         // Constructor for the DivBackward class
-        DivBackward(Tensor* a, Tensor* b);
+        DivBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b);
 
         // Function to propagate gradients of a division node backward to child nodes
         void backward() override;
+
+        string name() override {
+            return "DivBackward";
+        }
 };
 
 // ---------------------------------------------------------------------------
 
 // Node for matmul in the automatic differentiation graph that inherits from the Node class
 class MatmulBackward : public Node {
-    Tensor* lhs;
-    Tensor* rhs;
+    shared_ptr<Tensor> lhs;
+    shared_ptr<Tensor> rhs;
 
     public:
         // Constructor for the MatmulBackward class
-        MatmulBackward(Tensor* a, Tensor* b);
+        MatmulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b);
 
         // Function to propagate gradients of a matmul node backward to child nodes
         void backward() override;
+
+        string name() override {
+            return "MatmulBackward";
+        }
 };

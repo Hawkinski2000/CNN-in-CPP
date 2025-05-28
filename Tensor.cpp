@@ -4,6 +4,7 @@
 #include <cmath>
 #include "Tensor.h"
 #include "Engine.h"
+#include "nn.h"
 using namespace std;
 
 
@@ -31,17 +32,22 @@ TODO:
 */
 
 // Default constructor for the Tensor class
-Tensor::Tensor() : total_elements(0) {};
+Tensor::Tensor() : total_elements(0) {
+    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+    fill(grad.get(), grad.get() + total_elements, 0);
+}
 
 // Copy constructor for the Tensor class
 Tensor::Tensor(const Tensor& other) {
     dimensions = other.dimensions;
     total_elements = other.total_elements;
     strides = other.strides;    
-    data = shared_ptr<float>(new float[other.total_elements], default_delete<float[]>());
-    copy(other.data.get(), other.data.get() + other.total_elements, data.get());
-    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
-    fill(grad.get(), grad.get() + total_elements, 0);
+    data = other.data;
+    grad = other.grad;
+    if (other.node) {
+        node = other.node;
+        node->tensor = this;
+    }
 }
 
 // Move constructor for the Tensor class
@@ -51,9 +57,11 @@ Tensor::Tensor(Tensor&& other)
       strides(move(other.strides)),
       total_elements(other.total_elements) {
     other.total_elements = 0;
-    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
-    fill(grad.get(), grad.get() + total_elements, 0);
-    node = other.node;
+    grad = move(other.grad);
+    if (other.node) {
+        node = move(other.node);
+        node->tensor = this;
+    }
 }
 
 // Constructor for Tensor class used by creation methods that specify a shape as an initializer_list
@@ -246,10 +254,12 @@ Tensor& Tensor::operator=(Tensor&& other) {
         data = move(other.data);
         dimensions = move(other.dimensions);
         strides = move(other.strides);
-        total_elements = other.total_elements;
-        other.total_elements = 0;
+        total_elements = move(other.total_elements);
         grad = move(other.grad);
-        node = other.node;
+    }
+    if (other.node) {
+        node = move(other.node);
+        node->tensor = this;
     }
     return *this;
 }
@@ -260,10 +270,12 @@ Tensor& Tensor::operator=(const Tensor& other) {
         dimensions = other.dimensions;
         strides = other.strides;
         total_elements = other.total_elements;
-        data = shared_ptr<float>(new float[other.total_elements], default_delete<float[]>());
-        copy(other.data.get(), other.data.get() + other.total_elements, data.get());
-        grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
-        copy(other.grad.get(), other.grad.get() + other.total_elements, grad.get());
+        data = other.data;
+        grad = other.grad;
+        if (other.node) {
+            node = other.node;
+            node->tensor = this;
+        }
     }
     return *this;
 }
@@ -544,7 +556,7 @@ Tensor Tensor::operator+(Tensor& other) {
     }
 
     if (requires_grad) {
-        result.node = make_shared<AddBackward>(this, &other);
+        result.node = make_shared<AddBackward>(make_shared<Tensor>(*this), make_shared<Tensor>(other));
         result.node->tensor = &result;
     }
 
@@ -612,7 +624,7 @@ Tensor Tensor::operator-(Tensor& other) {
     }
 
     if (requires_grad) {
-        result.node = make_shared<SubBackward>(this, &other);
+        result.node = make_shared<SubBackward>(make_shared<Tensor>(*this), make_shared<Tensor>(other));
         result.node->tensor = &result;
     }
 
@@ -680,7 +692,7 @@ Tensor Tensor::operator*(Tensor& other) {
     }
 
     if (requires_grad) {
-        result.node = make_shared<MulBackward>(this, &other);
+        result.node = make_shared<MulBackward>(make_shared<Tensor>(*this), make_shared<Tensor>(other));
         result.node->tensor = &result;
     }
 
@@ -748,7 +760,7 @@ Tensor Tensor::operator/(Tensor& other) {
     }
 
     if (requires_grad) {
-        result.node = make_shared<DivBackward>(this, &other);
+        result.node = make_shared<DivBackward>(make_shared<Tensor>(*this), make_shared<Tensor>(other));
         result.node->tensor = &result;
     }
 
@@ -1069,42 +1081,19 @@ int main() {
     cout << "After applying matmul to tensors y and z and storing the result in z, the tensor z now contains:" << endl << z << endl;
     cout << "The tensor z has the shape: " << z.shape_str() << endl << endl;
 
-    Tensor X = Tensor::ones({1, 784});
-    X *= 0.5;
-    cout << "The tensor X has the shape: " << X.shape_str() << endl;
-    Tensor W1 = Tensor::ones({784, 256});
-    W1 *= 0.01;
-    X = X.matmul(W1);
-    cout << "The tensor X has the shape: " << X.shape_str() << endl;
-    Tensor W2 = Tensor::ones({256, 64});
-    W2 *= 0.01;
-    X = X.matmul(W2);
-    cout << "The tensor X has the shape: " << X.shape_str() << endl;
-    Tensor W3 = Tensor::ones({64, 10});
-    W3 *= 0.01;
-    X = X.matmul(W3);
-    cout << "The tensor X has the shape: " << X.shape_str() << endl;
-    cout << "The tensor X contains: " << X << endl << endl;
+    Tensor H = Tensor::rand({4, 4});
+    cout << "The tensor H contains:" << endl << H << endl << endl;
 
-    Tensor A = Tensor::ones({2, 4});
-    A *= 2;
-    cout << "The tensor A contains:" << endl << A << endl;
-    Tensor B = Tensor::ones({4, 2});
-    cout << "The tensor B contains:" << endl << B << endl;
-    Tensor C = A.matmul(B);
-    cout << "The tensor C contains:" << endl << C << endl;
-    Tensor D = Tensor::ones({2, 2});
-    D *= 3;
-    cout << "The tensor D contains:" << endl << D << endl;
-    Tensor E = Tensor::ones({2, 2});
-    E *= 4;
-    cout << "The tensor E contains:" << endl << E << endl;
-    Tensor F = D.matmul(E);
-    cout << "The tensor F contains:" << endl << F << endl;
+    cout << "-------------------------------------------------------------------------------" << endl << endl;
 
-    Tensor G = C.matmul(F);
-    cout << "The tensor G contains:" << endl << G << endl;
-    cout << "The tensors A, B, C, D, E, and F which were multiplied with matmul() to create the tensor G now have the gradients:" << endl;
-    G.backward();
-    cout << endl;
-}
+    Tensor X = Tensor::rand({784});
+    Linear layer1 = Linear(784, 256);
+    Linear layer2 = Linear(256, 64);
+    Linear layer3 = Linear(64, 10);
+    X = layer1(X);
+    X = layer2(X);
+    X = layer3(X);
+    cout << "After forwarding X through the network, it now contains contains:" << endl << X << endl;
+    cout << "The predicted class is: " << X.argmax() << endl << endl;
+    X.backward();
+}   
