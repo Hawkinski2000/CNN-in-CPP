@@ -1096,4 +1096,36 @@ int main() {
     cout << "After forwarding X through the network, it now contains contains:" << endl << X << endl;
     cout << "The predicted class is: " << X.argmax() << endl << endl;
     X.backward();
-}   
+
+    cout << "-------------------------------------------------------------------------------" << endl << endl;
+
+    class Net : public Module {
+        public:
+            Linear fc1 = Linear(784, 256);
+            Linear fc2 = Linear(256, 64);
+            Linear fc3 = Linear(64, 10);
+            
+            Net() {
+                modules = {&fc1, &fc2, &fc3};
+            }
+
+            Tensor forward(Tensor& x) override {
+                x = fc1(x);
+                x = fc2(x);
+                x = fc3(x);
+                return x;
+            }
+    };
+
+    Net net;
+    Tensor inputs = Tensor::rand({784});
+    Tensor outputs = net(inputs);
+    cout << "After forwarding the inputs tensor through the network, the outputs tensor contains contains:" << endl << outputs << endl;
+    cout << "The predicted class is: " << outputs.argmax() << endl;
+    cout << "net has ";
+    size_t params = 0;
+    for (Tensor* tensor : net.parameters()) {
+        params += tensor->numel();
+    }
+    cout << params << " parameters" << endl << endl;
+    }

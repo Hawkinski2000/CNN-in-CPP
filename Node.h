@@ -10,18 +10,14 @@ class Tensor;
 // Base class for nodes in the automatic differentiation graph
 class Node {
     public:
-        // Constructor for the Node class
-        Node();
-
         // Destructor for the Node class
         virtual ~Node();
 
         // Function to propagate gradients backward to child nodes
-        virtual void backward();
+        virtual void backward() = 0;
 
-        virtual string name() {
-            return "Node";
-        }
+        // Function to return the type of Node
+        virtual string name() = 0;
 
         Tensor* tensor = nullptr;
         vector<shared_ptr<Node>> children;
@@ -38,12 +34,11 @@ class AddBackward : public Node {
         // Constructor for the AddBackward class
         AddBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b);
 
-        // Function to propagate gradients of an addition node backward to child nodes
+        // Function to propagate gradients backward to child nodes
         void backward() override;
 
-        string name() override {
-            return "AddBackward";
-        }
+        // Function to return the type of Node
+        string name() override;
 };
 
 // ---------------------------------------------------------------------------
@@ -57,12 +52,11 @@ class SubBackward : public Node {
         // Constructor for the SubBackward class
         SubBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b);
 
-        // Function to propagate gradients of a subtraction node backward to child nodes
+        // Function to propagate gradients backward to child nodes
         void backward() override;
 
-        string name() override {
-            return "SubBackward";
-        }
+        // Function to return the type of Node
+        string name() override;
 };
 
 // ---------------------------------------------------------------------------
@@ -76,12 +70,11 @@ class MulBackward : public Node {
         // Constructor for the MulBackward class
         MulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b);
 
-        // Function to propagate gradients of a multiplication node backward to child nodes
+        // Function to propagate gradients backward to child nodes
         void backward() override;
 
-        string name() override {
-            return "MulBackward";
-        }
+        // Function to return the type of Node
+        string name() override;
 };
 
 // ---------------------------------------------------------------------------
@@ -95,12 +88,11 @@ class DivBackward : public Node {
         // Constructor for the DivBackward class
         DivBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b);
 
-        // Function to propagate gradients of a division node backward to child nodes
+        // Function to propagate gradients backward to child nodes
         void backward() override;
 
-        string name() override {
-            return "DivBackward";
-        }
+        // Function to return the type of Node
+        string name() override;
 };
 
 // ---------------------------------------------------------------------------
@@ -114,10 +106,9 @@ class MatmulBackward : public Node {
         // Constructor for the MatmulBackward class
         MatmulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b);
 
-        // Function to propagate gradients of a matmul node backward to child nodes
+        // Function to propagate gradients backward to child nodes
         void backward() override;
 
-        string name() override {
-            return "MatmulBackward";
-        }
+        // Function to return the type of Node
+        string name() override;
 };

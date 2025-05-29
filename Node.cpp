@@ -7,14 +7,8 @@
 using namespace std;
 
 
-// Constructor for the Node class
-Node::Node() = default;
-
 // Destructor for the Node class
 Node::~Node() = default;
-
-// Function to propagate gradients backward to child nodes
-void Node::backward() {};
 
 // ---------------------------------------------------------------------------
 
@@ -28,7 +22,7 @@ AddBackward::AddBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_
     }
 }
 
-// Function to propagate gradients of an addition node backward to child nodes
+// Function to propagate gradients backward to child nodes
 void AddBackward::backward() {
     for (size_t i = 0; i < tensor->total_elements; i++) {
         lhs->grad.get()[i] += tensor->grad.get()[i];
@@ -47,6 +41,11 @@ void AddBackward::backward() {
     // cout << endl << "===============================================================================" << endl;
 }
 
+// Function to return the type of Node
+string AddBackward::name() {
+    return "AddBackward";
+}
+
 // ---------------------------------------------------------------------------
 
 // Constructor for the SubBackward class
@@ -59,12 +58,17 @@ SubBackward::SubBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_
     }
 }
 
-// Function to propagate gradients of a subtraction node backward to child nodes
+// Function to propagate gradients backward to child nodes
 void SubBackward::backward() {
     for (size_t i = 0; i < tensor->total_elements; i++) {
         lhs->grad.get()[i] += tensor->grad.get()[i];
         rhs->grad.get()[i] -= tensor->grad.get()[i];
     }
+}
+
+// Function to return the type of Node
+string SubBackward::name() {
+    return "SubBackward";
 }
 
 // ---------------------------------------------------------------------------
@@ -79,12 +83,17 @@ MulBackward::MulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_
     }
 }
 
-// Function to propagate gradients of a multiplication node backward to child nodes
+// Function to propagate gradients backward to child nodes
 void MulBackward::backward() {
     for (size_t i = 0; i < tensor->total_elements; i++) {
         lhs->grad.get()[i] += tensor->grad.get()[i] * rhs->get_data()[i];
         rhs->grad.get()[i] += tensor->grad.get()[i] * lhs->get_data()[i];
     }
+}
+
+// Function to return the type of Node
+string MulBackward::name() {
+    return "MulBackward";
 }
 
 // ---------------------------------------------------------------------------
@@ -99,12 +108,17 @@ DivBackward::DivBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_
     }
 }
 
-// Function to propagate gradients of a division node backward to child nodes
+// Function to propagate gradients backward to child nodes
 void DivBackward::backward() {
     for (size_t i = 0; i < tensor->total_elements; i++) {
         lhs->grad.get()[i] += tensor->grad.get()[i] * (1 / rhs->get_data()[i]);
         rhs->grad.get()[i] += tensor->grad.get()[i] * (-lhs->get_data()[i] / pow(rhs->get_data()[i], 2));
     }
+}
+
+// Function to return the type of Node
+string DivBackward::name() {
+    return "DivBackward";
 }
 
 // ---------------------------------------------------------------------------
@@ -119,7 +133,7 @@ MatmulBackward::MatmulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs
     }
 }
 
-// Function to propagate gradients of a matmul node backward to child nodes
+// Function to propagate gradients backward to child nodes
 void MatmulBackward::backward() {
     Tensor dLdc = *tensor;
     copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdc.data.get());
@@ -217,4 +231,9 @@ void MatmulBackward::backward() {
     //     cout << rhs->grad.get()[i] << ", ";
     // }
     // cout << endl << "===============================================================================" << endl;
+}
+
+// Function to return the type of Node
+string MatmulBackward::name() {
+    return "MatmulBackward";
 }
