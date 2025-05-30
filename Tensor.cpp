@@ -17,7 +17,7 @@ TODO:
     - pow() (floats and negatives as exponents).
     - squeeze()/unsqueeze().
     - min() and max() (specifying dimensions to reduce).
-    - sum() (specifying dimensions to reduce).
+    - sum() (specifying multiple dimensions to reduce).
     - mean() (specifying dimensions to reduce).
     - exp().
     - log().
@@ -357,10 +357,41 @@ Tensor Tensor::transpose(size_t dim0, size_t dim1) {
 // ---------------------------------------------------------------------------
 
 // Function to return the sum of all elements in a tensor
-Tensor Tensor::sum() {
-    Tensor result = tensor({0});
-    for (size_t i = 0; i < total_elements; i++) {
-        result[0] += data.get()[i];
+Tensor Tensor::sum(optional<size_t> dim) {
+    Tensor result;
+    // A dimension to reduce was specified
+    if (dim.has_value()) {
+        size_t d = dim.value();
+        vector<size_t> out_dims = dimensions;
+        out_dims[d] = 1;
+
+        result = Tensor::zeros(out_dims);
+
+        for (size_t i = 0; i < total_elements; i++) {
+            vector<size_t> idx(dimensions.size());
+            size_t idx_copy = i;
+            for (size_t j = dimensions.size(); j-- > 0;) {
+                idx[j] = idx_copy % dimensions[j];
+                idx_copy /= dimensions[j];
+            }
+
+            vector<size_t> out_idx = idx;
+            out_idx[d] = 0;
+
+            size_t out_flat_idx = 0;
+            for (size_t j = 0; j < out_dims.size(); j++) {
+                out_flat_idx += out_idx[j] * result.strides[j];
+            }
+
+            result.data.get()[out_flat_idx] += data.get()[i];
+        }
+    }
+    else {
+        // A dimension to reduce was not specified, so all dimensions are reduced
+        result = tensor({0});
+        for (size_t i = 0; i < total_elements; i++) {
+            result[0] += data.get()[i];
+        }
     }
     return result;
 }
@@ -549,9 +580,9 @@ Tensor Tensor::operator+(Tensor& other) {
 
     // Otherwise, the tensors have the same shape, so just add element-wise
     else {
-        result = *this;
-        for (size_t i = 0; i < other.total_elements; i++) {
-            result.data.get()[i] += other.data.get()[i];
+        result = Tensor(dimensions);
+        for (size_t i = 0; i < total_elements; i++) {
+            result.data.get()[i] = data.get()[i] + other.data.get()[i];
         }
     }
 
@@ -565,9 +596,9 @@ Tensor Tensor::operator+(Tensor& other) {
 
 // Overload the + operator for element-wise addition between tensors and scalars
 Tensor Tensor::operator+(float value) {
-    Tensor result = *this;
+    Tensor result = Tensor(dimensions);
     for (size_t i = 0; i < total_elements; i++) {
-        result.data.get()[i] += value;
+        result.data.get()[i] = data.get()[i] + value;
     }
     return result;
 }
@@ -617,9 +648,9 @@ Tensor Tensor::operator-(Tensor& other) {
 
     // Otherwise, the tensors have the same shape, so just subtract element-wise
     else {
-        result = *this;
-        for (size_t i = 0; i < other.total_elements; i++) {
-            result.data.get()[i] -= other.data.get()[i];
+        result = Tensor(dimensions);
+        for (size_t i = 0; i < total_elements; i++) {
+            result.data.get()[i] = data.get()[i] - other.data.get()[i];
         }
     }
 
@@ -633,10 +664,10 @@ Tensor Tensor::operator-(Tensor& other) {
 
 // Overload the - operator for element-wise subtraction between tensors and scalars
 Tensor Tensor::operator-(float value) {
-    Tensor result = *this;
+    Tensor result = Tensor(dimensions);
     for (size_t i = 0; i < total_elements; i++) {
-        result.data.get()[i] -= value;
-    }
+        result.data.get()[i] = data.get()[i] - value;
+    }   
     return result;
 }
 
@@ -685,9 +716,9 @@ Tensor Tensor::operator*(Tensor& other) {
 
     // Otherwise, the tensors have the same shape, so just multiply element-wise
     else {
-        result = *this;
-        for (size_t i = 0; i < other.total_elements; i++) {
-            result.data.get()[i] *= other.data.get()[i];
+        result = Tensor(dimensions);
+        for (size_t i = 0; i < total_elements; i++) {
+            result.data.get()[i] = data.get()[i] * other.data.get()[i];
         }
     }
 
@@ -701,9 +732,9 @@ Tensor Tensor::operator*(Tensor& other) {
 
 // Overload the * operator for element-wise multiplication between tensors and scalars
 Tensor Tensor::operator*(float value) {
-    Tensor result = *this;
+    Tensor result = Tensor(dimensions);
     for (size_t i = 0; i < total_elements; i++) {
-        result.data.get()[i] *= value;
+        result.data.get()[i] = data.get()[i] * value;
     }
     return result;
 }
@@ -753,9 +784,9 @@ Tensor Tensor::operator/(Tensor& other) {
 
     // Otherwise, the tensors have the same shape, so just divide element-wise
     else {
-        result = *this;
-        for (size_t i = 0; i < other.total_elements; i++) {
-            result.data.get()[i] /= other.data.get()[i];
+        result = Tensor(dimensions);
+        for (size_t i = 0; i < total_elements; i++) {
+            result.data.get()[i] = data.get()[i] / other.data.get()[i];
         }
     }
 
@@ -769,9 +800,9 @@ Tensor Tensor::operator/(Tensor& other) {
 
 // Overload the / operator for element-wise division between tensors and scalars
 Tensor Tensor::operator/(float value) {
-    Tensor result = *this;
+    Tensor result = Tensor(dimensions);
     for (size_t i = 0; i < total_elements; i++) {
-        result.data.get()[i] /= value;
+        result.data.get()[i] = data.get()[i] / value;
     }
     return result;
 }
@@ -1081,21 +1112,18 @@ int main() {
     cout << "After applying matmul to tensors y and z and storing the result in z, the tensor z now contains:" << endl << z << endl;
     cout << "The tensor z has the shape: " << z.shape_str() << endl << endl;
 
-    Tensor H = Tensor::rand({4, 4});
-    cout << "The tensor H contains:" << endl << H << endl << endl;
+    Tensor A = Tensor::rand({4, 4});
+    cout << "The tensor A contains:" << endl << A << endl << endl;
 
-    cout << "-------------------------------------------------------------------------------" << endl << endl;
-
-    Tensor X = Tensor::rand({784});
-    Linear layer1 = Linear(784, 256);
-    Linear layer2 = Linear(256, 64);
-    Linear layer3 = Linear(64, 10);
-    X = layer1(X);
-    X = layer2(X);
-    X = layer3(X);
-    cout << "After forwarding X through the network, it now contains contains:" << endl << X << endl;
-    cout << "The predicted class is: " << X.argmax() << endl << endl;
-    X.backward();
+    Tensor B = Tensor::ones({2, 4}) * 2;
+    cout << "The tensor B contains:" << endl << B << endl;
+    cout << "The tensor B has the shape: " << B.shape_str() << endl;
+    Tensor C = B.sum(0);
+    cout << "After applying sum with dim 0 to tensor B and storing in tensor C, tensor C contains:" << endl << C << endl;
+    cout << "The tensor C has the shape: " << C.shape_str() << endl;
+    C = B.sum(1);
+    cout << "After applying sum with dim 1 to tensor B and storing in tensor C, tensor C contains:" << endl << C << endl;
+    cout << "The tensor C has the shape: " << C.shape_str() << endl << endl;
 
     cout << "-------------------------------------------------------------------------------" << endl << endl;
 

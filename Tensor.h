@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include <optional>
 // #include "Node.h"
 using namespace std;
 
@@ -100,7 +101,7 @@ class Tensor {
         // ---------------------------------------------------------------------------
 
         // Function to return the sum of all elements in a tensor
-        Tensor sum();
+        Tensor sum(optional<size_t> dim = nullopt);
 
         // Function to return the mean of all elements in a tensor
         Tensor mean();
