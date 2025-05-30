@@ -2,7 +2,6 @@
 #include <vector>
 #include <memory>
 #include <optional>
-// #include "Node.h"
 using namespace std;
 
 
@@ -111,6 +110,9 @@ class Tensor {
 
         // Function to return the exponential of all elements in a tensor
         Tensor exp();
+
+        // Function to return the natural logarithm of all elements in a tensor
+        Tensor log();
 
         // Function to return the minimum value of all elements in a tensor
         Tensor min(optional<size_t> dim = nullopt);
@@ -227,6 +229,23 @@ class Tensor {
         // Function to call Engine::run_backward() to compute the gradient of the current tensor w.r.t. graph leaves.
         void backward();
         
+        // ---------------------------------------------------------------------------
+
+        // Function to apply the rectified linear unit function to the input tensor
+        friend Tensor relu(const Tensor& input);
+
+        // Function to apply softmax to the input tensor
+        friend Tensor softmax(Tensor& input, optional<size_t> dim);
+
+        // Function to apply log softmax to the input tensor
+        friend Tensor log_softmax(Tensor& input, optional<size_t> dim);
+
+        // Function to compute the negative log likelihood loss from the input tensor and targets
+        friend Tensor nll_loss(Tensor& input, Tensor& targets);
+
+        // Function to compute the cross entropy loss between input tensor and targets
+        friend Tensor cross_entropy(Tensor& input, Tensor& targets);
+
         // ---------------------------------------------------------------------------
 
         bool requires_grad = true;

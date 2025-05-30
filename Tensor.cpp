@@ -5,10 +5,11 @@
 #include "Tensor.h"
 #include "Engine.h"
 #include "nn.h"
+#include "functional.h"
 using namespace std;
 
 
-// Compile with: nvcc -o Tensor Tensor.cpp Node.cpp Engine.cpp nn.cpp matmul.cu -lcublas
+// Compile with: nvcc -o Tensor Tensor.cpp Node.cpp Engine.cpp nn.cpp functional.cpp matmul.cu -lcublas
 
 /*
 ==============================================================================
@@ -423,6 +424,15 @@ Tensor Tensor::exp() {
     Tensor result = Tensor(dimensions);
     for (size_t i = 0; i < total_elements; i++) {
         result.data.get()[i] = std::exp(data.get()[i]);
+    }
+    return result;
+}
+
+// Function to return the natural logarithm of all elements in a tensor
+Tensor Tensor::log() {
+    Tensor result = Tensor(dimensions);
+    for (size_t i = 0; i < total_elements; i++) {
+        result.data.get()[i] = std::log(data.get()[i]);
     }
     return result;
 }
@@ -1281,6 +1291,57 @@ int main() {
     G = F.argmax(1);
     cout << "After applying argmax with dim 1 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl << endl;
 
+    Tensor H = Tensor::empty({3, 3});
+    H[0][0] = 4.8;
+    H[0][1] = 1.21;
+    H[0][2] = 2.385;
+    H[1][0] = 8.9;
+    H[1][1] = -1.81;
+    H[1][2] = 0.2;
+    H[2][0] = 1.41;
+    H[2][1] = 1.051;
+    H[2][2] = 0.026;
+    cout << "The tensor H contains:" << endl << H << endl; 
+    cout << "The tensor H has the shape: " << H.shape_str() << endl;
+    H = softmax(H, 1);
+    cout << "After applying softmax to tensor H, it now contains:" << endl << H << endl << endl;
+
+    Tensor I = Tensor::ones({4, 4}) * 2;
+    cout << "The tensor I contains:" << endl << I << endl;
+    I = I.log();
+    cout << "After applying log to tensor I, it now contains:" << endl << I << endl << endl;
+
+    Tensor J = Tensor::tensor({2, 1, 0.1});
+    cout << "The tensor J contains:" << endl << J << endl;
+    J = log_softmax(J, 0);
+    cout << "After applying log softmax to tensor J, it now contains:" << endl << J << endl << endl;
+
+    Tensor log_probs = Tensor::empty({2, 2});
+    log_probs[0][0] = -0.2;
+    log_probs[0][1] = -1.6;
+    log_probs[1][0] = -1.3;
+    log_probs[1][1] = -0.3;
+    cout << "The tensor log_probs contains:" << endl << log_probs << endl;
+    Tensor labels = Tensor::tensor({0, 1});
+    cout << "The tensor labels contains:" << endl << labels << endl;
+    Tensor nll = nll_loss(log_probs, labels);
+    cout << "After applying nll_loss to log_probs and labels and storing in the tensor nll, the tensor nll contains:" << endl << nll << endl << endl;
+
+    Tensor K = Tensor::empty({2, 2});
+    K[0][0] = 2;
+    K[0][1] = 1;
+    K[1][0] = 0.5;
+    K[1][1] = 1.5;
+    cout << "The tensor K contains:" << endl << K << endl;
+    cout << "The tensor labels contains:" << endl << labels << endl;
+    Tensor ce = cross_entropy(K, labels);
+    cout << "After applying cross_entropy to K and labels and storing in the tensor ce, the tensor ce contains:" << endl << ce << endl << endl;
+
+    Tensor L = Tensor::tensor({-2, -1, 1, 2});
+    cout << "The tensor L contains:" << endl << L << endl;
+    L = relu(L);
+    cout << "After applying relu to the tensor L, it now contains:" << endl << L << endl << endl;
+
     cout << "-------------------------------------------------------------------------------" << endl << endl;
 
     class Net : public Module {
@@ -1294,18 +1355,22 @@ int main() {
             }
 
             Tensor forward(Tensor& x) override {
-                x = fc1(x);
-                x = fc2(x);
-                x = fc3(x);
+                x = relu(fc1(x));
+                x = relu(fc2(x));
+                x = relu(fc3(x));
                 return x;
             }
     };
 
     Net net;
-    Tensor inputs = Tensor::rand({784});
+    Tensor inputs = Tensor::rand({2, 784});
+    Tensor targets = Tensor::tensor({0, 5});
     Tensor outputs = net(inputs);
     cout << "After forwarding the inputs tensor through the network, the outputs tensor contains contains:" << endl << outputs << endl;
-    cout << "The predicted class is: " << outputs.argmax() << endl;
+    outputs = log_softmax(outputs, 1);
+    cout << "After applying log softmax to the outputs tensor, it now contains:" << endl << outputs << endl;
+    cout << "The predicted class is: " << outputs.argmax(1) << endl;
+    cout << "The loss is: " << cross_entropy(outputs, targets) << endl;
     cout << "net has ";
     size_t params = 0;
     for (Tensor* tensor : net.parameters()) {
