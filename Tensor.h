@@ -109,14 +109,17 @@ class Tensor {
         // Function for element-wise powers between tensors and scalars
         Tensor pow(int exponent);
 
+        // Function to return the exponential of all elements in a tensor
+        Tensor exp();
+
         // Function to return the minimum value of all elements in a tensor
-        Tensor min();
+        Tensor min(optional<size_t> dim = nullopt);
 
         // Function to return the maximum value of all elements in a tensor
-        Tensor max();
+        Tensor max(optional<size_t> dim = nullopt);
 
-        // Function to return the index of the maximum value of all elements in a tensor
-        size_t argmax();
+        // Function to return the indices of the maximum value of all elements in a tensor
+        Tensor argmax(optional<size_t> dim = nullopt);
 
         // Function to return true if two tensors have the same shape and elements, otherwise false.
         bool equal(const Tensor& other);

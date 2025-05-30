@@ -375,12 +375,11 @@ Tensor Tensor::sum(optional<size_t> dim) {
                 idx_copy /= dimensions[j];
             }
 
-            vector<size_t> out_idx = idx;
-            out_idx[d] = 0;
+            idx[d] = 0;
 
             size_t out_flat_idx = 0;
             for (size_t j = 0; j < out_dims.size(); j++) {
-                out_flat_idx += out_idx[j] * result.strides[j];
+                out_flat_idx += idx[j] * result.strides[j];
             }
 
             result.data.get()[out_flat_idx] += data.get()[i];
@@ -408,48 +407,179 @@ Tensor Tensor::mean() {
 
 // Function for element-wise powers between tensors and scalars
 Tensor Tensor::pow(int exponent) {
-    Tensor result = *this;
+    Tensor result = Tensor(dimensions);
     float value;
     for (size_t i = 0; i < total_elements; i++) {
-        value = result.data.get()[i];
-        for (int j = 0; j < exponent - 1; j++) {
-            result.data.get()[i] *= value;    
+        value = data.get()[i];
+        for (size_t j = 0; j < exponent - 1; j++) {
+            result.data.get()[i] = data.get()[i] * value;    
         }
+    }
+    return result;
+}
+
+// Function to return the exponential of all elements in a tensor
+Tensor Tensor::exp() {
+    Tensor result = Tensor(dimensions);
+    for (size_t i = 0; i < total_elements; i++) {
+        result.data.get()[i] = std::exp(data.get()[i]);
     }
     return result;
 }
 
 // Function to return the minimum value of all elements in a tensor
-Tensor Tensor::min() {
-    Tensor result = empty({1});
-    float min = data.get()[0];
-    for (size_t i = 1; i < total_elements; i++) {
-        min = std::min(min, data.get()[i]);
+Tensor Tensor::min(optional<size_t> dim) {
+    Tensor result;
+    // A dimension to reduce was specified
+    if (dim.has_value()) {
+        size_t d = dim.value();
+        std::vector<size_t> out_dims = dimensions;
+        out_dims[d] = 1;
+
+        result = Tensor(out_dims);
+        vector<bool> initialized(result.total_elements, false);
+
+        for (size_t i = 0; i < total_elements; i++) {
+            vector<size_t> idx(dimensions.size());
+            size_t idx_copy = i;
+            for (size_t j = dimensions.size(); j-- > 0;) {
+                idx[j] = idx_copy % dimensions[j];
+                idx_copy /= dimensions[j];
+            }
+
+            idx[d] = 0;
+
+            size_t out_flat_idx = 0;
+            for (size_t j = 0; j < out_dims.size(); j++) {
+                out_flat_idx += idx[j] * result.strides[j];
+            }
+
+            float value = data.get()[i];
+            if (!initialized[out_flat_idx]) {
+                result.data.get()[out_flat_idx] = value;
+                initialized[out_flat_idx] = true;
+            }
+            else {
+                result.data.get()[out_flat_idx] = std::min(result.data.get()[out_flat_idx], value);
+            }
+        }
     }
-    result[0] = min;
+    else {
+        // A dimension to reduce was not specified, so all dimensions are reduced
+        result = empty({1});
+        float min = data.get()[0];
+        for (size_t i = 1; i < total_elements; i++) {
+            min = std::min(min, data.get()[i]);
+        }
+        result[0] = min;
+    }
     return result;
 }
 
 // Function to return the maximum value of all elements in a tensor
-Tensor Tensor::max() {
-    Tensor result = empty({1});
-    float max = data.get()[0];
-    for (size_t i = 1; i < total_elements; i++) {
-        max = std::max(max, data.get()[i]);
+Tensor Tensor::max(optional<size_t> dim) {
+    Tensor result;
+    // A dimension to reduce was specified
+    if (dim.has_value()) {
+        size_t d = dim.value();
+        std::vector<size_t> out_dims = dimensions;
+        out_dims[d] = 1;
+
+        result = Tensor(out_dims);
+        vector<bool> initialized(result.total_elements, false);
+
+        for (size_t i = 0; i < total_elements; i++) {
+            vector<size_t> idx(dimensions.size());
+            size_t idx_copy = i;
+            for (size_t j = dimensions.size(); j-- > 0;) {
+                idx[j] = idx_copy % dimensions[j];
+                idx_copy /= dimensions[j];
+            }
+
+            idx[d] = 0;
+
+            size_t out_flat_idx = 0;
+            for (size_t j = 0; j < out_dims.size(); j++) {
+                out_flat_idx += idx[j] * result.strides[j];
+            }
+
+            float value = data.get()[i];
+            if (!initialized[out_flat_idx]) {
+                result.data.get()[out_flat_idx] = value;
+                initialized[out_flat_idx] = true;
+            }
+            else {
+                result.data.get()[out_flat_idx] = std::max(result.data.get()[out_flat_idx], value);
+            }
+        }
     }
-    result[0] = max;
+    else {
+        // A dimension to reduce was not specified, so all dimensions are reduced
+        result = empty({1});
+        float max = data.get()[0];
+        for (size_t i = 1; i < total_elements; i++) {
+            max = std::max(max, data.get()[i]);
+        }
+        result[0] = max;
+    }
     return result;
 }
 
-// Function to return the index of the maximum value of all elements in a tensor
-size_t Tensor::argmax() {
-    size_t idx = 0;
-    for (size_t i = 1; i < total_elements; i++) {
-        if (data.get()[i] > data.get()[idx]) {
-            idx = i;
+// Function to return the indices of the maximum value of all elements in a tensor
+Tensor Tensor::argmax(optional<size_t> dim) {
+    Tensor result;
+    // A dimension to reduce was specified
+    if (dim.has_value()) {
+        size_t d = dim.value();
+        vector<size_t> out_dims = dimensions;
+        out_dims[d] = 1;
+
+        result = Tensor(out_dims);
+        vector<float> max_vals(result.total_elements);
+        vector<bool> initialized(result.total_elements, false);
+
+        for (size_t i = 0; i < total_elements; i++) {
+            vector<size_t> idx(dimensions.size());
+            size_t idx_copy = i;
+            for (size_t j = dimensions.size(); j-- > 0;) {
+                idx[j] = idx_copy % dimensions[j];
+                idx_copy /= dimensions[j];
+            }
+
+            vector<size_t> out_idx = idx;
+            out_idx[d] = 0;
+
+            size_t out_flat_idx = 0;
+            for (size_t j = 0; j < out_dims.size(); j++) {
+                out_flat_idx += out_idx[j] * result.strides[j];
+            }
+
+            float val = data.get()[i];
+            if (!initialized[out_flat_idx]) {
+                max_vals[out_flat_idx] = val;
+                result.data.get()[out_flat_idx] = idx[d];
+                initialized[out_flat_idx] = true;
+            }
+            else if (val > max_vals[out_flat_idx]) {
+                max_vals[out_flat_idx] = val;
+                result.data.get()[out_flat_idx] = idx[d];
+            }
         }
     }
-    return idx;
+    else {
+        // A dimension to reduce was not specified, so all dimensions are reduced
+        result = empty({1});
+        size_t idx = 0;
+        float max = data.get()[0];
+        for (size_t i = 1; i < total_elements; i++) {
+            if (data.get()[i] > max) {
+                max = data.get()[i];
+                idx = i;
+            }
+        }
+        result.data.get()[0] = idx;
+    }
+    return result;
 }
 
 // Function to return true if two tensors have the same shape and elements, otherwise false.
@@ -1124,6 +1254,32 @@ int main() {
     C = B.sum(1);
     cout << "After applying sum with dim 1 to tensor B and storing in tensor C, tensor C contains:" << endl << C << endl;
     cout << "The tensor C has the shape: " << C.shape_str() << endl << endl;
+
+    Tensor D = Tensor::ones({4, 4}) * 2;
+    cout << "The tensor D contains:" << endl << D << endl;
+    Tensor E = D.exp();
+    cout << "After applying exp to tensor D and storing in tensor E, tensor E contains:" << endl << E << endl << endl;
+
+    Tensor F = Tensor::ones({2, 2});
+    F[0][1] += 1;
+    F[1][0] += 2;
+    F[1][1] += 3;
+    cout << "The tensor F contains:" << endl << F << endl;
+    cout << "The tensor F has the shape: " << F.shape_str() << endl;
+    Tensor G = F.max(0);
+    cout << "After applying max with dim 0 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl;
+    G = F.max(1);
+    cout << "After applying max with dim 1 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl << endl;
+
+    G = F.min(0);
+    cout << "After applying min with dim 0 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl;
+    G = F.min(1);
+    cout << "After applying min with dim 1 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl << endl;
+
+    G = F.argmax(0);
+    cout << "After applying argmax with dim 0 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl;
+    G = F.argmax(1);
+    cout << "After applying argmax with dim 1 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl << endl;
 
     cout << "-------------------------------------------------------------------------------" << endl << endl;
 
