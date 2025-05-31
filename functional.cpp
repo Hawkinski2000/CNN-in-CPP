@@ -1,6 +1,8 @@
 #include <iostream>
+#include <memory>
 #include "functional.h"
 #include "Tensor.h"
+#include "Node.h"
 using namespace std;
 
 
@@ -15,7 +17,7 @@ Tensor relu(const Tensor& input) {
 
 // Function to apply softmax to the input tensor
 Tensor softmax(Tensor& input, optional<size_t> dim) {
-    Tensor max = input.max();
+    Tensor max = input.max(dim);
     Tensor shifted_values = input - max;
     Tensor exp_values = shifted_values.exp();
     Tensor sum_exp_values = exp_values.sum(dim);
@@ -25,12 +27,20 @@ Tensor softmax(Tensor& input, optional<size_t> dim) {
 
 // Function to apply log softmax to the input tensor
 Tensor log_softmax(Tensor& input, optional<size_t> dim) {
-    Tensor max = input.max();
+    Tensor max = input.max(dim);
     Tensor shifted_values = input - max;
     Tensor exp_values = shifted_values.exp();
     Tensor sum_exp_values = exp_values.sum(dim);
     Tensor log_sum_exp_values = sum_exp_values.log();
     Tensor result = shifted_values - log_sum_exp_values;
+
+    Tensor softmax_values = exp_values / sum_exp_values;
+
+    if (input.requires_grad) {
+        result.node = make_shared<LogSoftmaxBackward>(make_shared<Tensor>(input), make_shared<Tensor>(softmax_values));
+        result.node->tensor = &result;
+    }
+
     return result;
 }
 
@@ -53,6 +63,11 @@ Tensor nll_loss(Tensor& input, Tensor& targets) {
         result[0] -= input.data.get()[flat_index];
     }
     result[0] /= batch_size;
+
+    if (input.requires_grad) {
+        result.node = make_shared<NLLLossBackward>(make_shared<Tensor>(input), make_shared<Tensor>(targets));
+        result.node->tensor = &result;
+    }
     return result;
 }
 

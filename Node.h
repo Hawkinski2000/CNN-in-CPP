@@ -112,3 +112,39 @@ class MatmulBackward : public Node {
         // Function to return the type of Node
         string name() override;
 };
+
+// ---------------------------------------------------------------------------
+
+// Node for log softmax in the automatic differentiation graph that inherits from the Node class
+class LogSoftmaxBackward : public Node {
+    shared_ptr<Tensor> input;
+    shared_ptr<Tensor> softmax_values;
+
+    public:
+        // Constructor for the LogSoftmaxBackward class
+        LogSoftmaxBackward(shared_ptr<Tensor> input, shared_ptr<Tensor> softmax_values);
+
+        // Function to propagate gradients backward to child nodes
+        void backward() override;
+
+        // Function to return the type of Node
+        string name() override;
+};
+
+// ---------------------------------------------------------------------------
+
+// Node for negative log likelihood loss in the automatic differentiation graph that inherits from the Node class
+class NLLLossBackward : public Node {
+    shared_ptr<Tensor> input;
+    shared_ptr<Tensor> targets;
+
+    public:
+        // Constructor for the NLLLossBackward class
+        NLLLossBackward(shared_ptr<Tensor> input, shared_ptr<Tensor> targets);
+
+        // Function to propagate gradients backward to child nodes
+        void backward() override;
+
+        // Function to return the type of Node
+        string name() override;
+};

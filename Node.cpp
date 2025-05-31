@@ -4,6 +4,7 @@
 #include <cmath>
 #include "Node.h"
 #include "Tensor.h"
+
 using namespace std;
 
 
@@ -221,19 +222,86 @@ void MatmulBackward::backward() {
         }
     }
 
-    // cout << "===============================================================================" << endl;
-    // cout << "A MatmulBackward node has the gradients:" << endl;
-    // for (size_t i = 0; i < lhs->total_elements; i++) {
-    //     cout << lhs->grad.get()[i] << ", ";
-    // }
-    // cout << "and ";
-    // for (size_t i = 0; i < rhs->total_elements; i++) {
-    //     cout << rhs->grad.get()[i] << ", ";
-    // }
-    // cout << endl << "===============================================================================" << endl;
+    cout << "===============================================================================" << endl;
+    cout << "A MatmulBackward node has the gradients:" << endl;
+    for (size_t i = 0; i < lhs->total_elements; i++) {
+        cout << lhs->grad.get()[i] << ", ";
+    }
+    cout << "and ";
+    for (size_t i = 0; i < rhs->total_elements; i++) {
+        cout << rhs->grad.get()[i] << ", ";
+    }
+    cout << endl << "===============================================================================" << endl;
 }
 
 // Function to return the type of Node
 string MatmulBackward::name() {
     return "MatmulBackward";
+}
+
+// ---------------------------------------------------------------------------
+
+// Constructor for the LogSoftmaxBackward class
+LogSoftmaxBackward::LogSoftmaxBackward(shared_ptr<Tensor> input, shared_ptr<Tensor> softmax_values) : input(input), softmax_values(softmax_values) {
+    if (input->node) {
+        children.push_back({input->node});
+    }
+}
+
+// Function to propagate gradients backward to child nodes
+void LogSoftmaxBackward::backward() {
+    Tensor dLdy = *tensor;
+    copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdy.data.get());
+    Tensor sum_dLdy = dLdy.sum(1);
+    Tensor sum_dLdy_p = sum_dLdy * *softmax_values;
+    Tensor dLdx = dLdy - sum_dLdy_p;
+
+    for (size_t i = 0; i < input->total_elements; i++) {
+        input->grad.get()[i] += dLdx.data.get()[i];
+    }
+
+    // cout << "===============================================================================" << endl;
+    // cout << "A LogSoftmaxBackward node has the gradients:" << endl;
+    // for (size_t i = 0; i < input->total_elements; i++) {
+    //     cout << input->grad.get()[i] << ", ";
+    // }
+    // cout << endl << "===============================================================================" << endl;
+}
+
+// Function to return the type of Node
+string LogSoftmaxBackward::name() {
+    return "LogSoftmaxBackward";
+}
+
+// ---------------------------------------------------------------------------
+
+// Constructor for the NLLLossBackward class
+NLLLossBackward::NLLLossBackward(shared_ptr<Tensor> input, shared_ptr<Tensor> targets) : input(input), targets(targets) {
+    if (input->node) {
+        children.push_back({input->node});
+    }
+}
+
+// Function to propagate gradients backward to child nodes
+void NLLLossBackward::backward() {
+    size_t batch_size = input->dimensions[0];
+    size_t num_classes = input->dimensions[1];
+    
+    for (size_t i = 0; i < batch_size; i++) {
+        size_t target_class = static_cast<size_t>(targets->data.get()[i]);
+        size_t idx = i * num_classes + target_class;
+        input->grad.get()[idx] = -1 / static_cast<float>(batch_size);
+    }
+
+    // cout << "===============================================================================" << endl;
+    // cout << "A NLLLossBackward node has the gradients:" << endl;
+    // for (size_t i = 0; i < input->total_elements; i++) {
+    //     cout << input->grad.get()[i] << ", ";
+    // }
+    // cout << endl << "===============================================================================" << endl;
+}
+
+// Function to return the type of Node
+string NLLLossBackward::name() {
+    return "NLLLossBackward";
 }
