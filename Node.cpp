@@ -138,7 +138,6 @@ MatmulBackward::MatmulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs
 void MatmulBackward::backward() {
     Tensor dLdc = *tensor;
     copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdc.data.get());
-
     Tensor dLda = dLdc.matmul(*rhs, false, true, false);
     Tensor dLdb = lhs->matmul(dLdc, true, false, false);
 
@@ -222,21 +221,57 @@ void MatmulBackward::backward() {
         }
     }
 
-    cout << "===============================================================================" << endl;
-    cout << "A MatmulBackward node has the gradients:" << endl;
-    for (size_t i = 0; i < lhs->total_elements; i++) {
-        cout << lhs->grad.get()[i] << ", ";
-    }
-    cout << "and ";
-    for (size_t i = 0; i < rhs->total_elements; i++) {
-        cout << rhs->grad.get()[i] << ", ";
-    }
-    cout << endl << "===============================================================================" << endl;
+    // cout << "===============================================================================" << endl;
+    // cout << "A MatmulBackward node has the gradients:" << endl;
+    // for (size_t i = 0; i < lhs->total_elements; i++) {
+    //     cout << lhs->grad.get()[i] << ", ";
+    // }
+    // cout << "and ";
+    // for (size_t i = 0; i < rhs->total_elements; i++) {
+    //     cout << rhs->grad.get()[i] << ", ";
+    // }
+    // cout << endl << "===============================================================================" << endl;
 }
 
 // Function to return the type of Node
 string MatmulBackward::name() {
     return "MatmulBackward";
+}
+
+// ---------------------------------------------------------------------------
+
+// Constructor for the ReLUBackward class
+ReLUBackward::ReLUBackward(shared_ptr<Tensor> input) : input(input) {
+    if (input->node) {
+        children.push_back({input->node});
+    }
+}
+
+// Function to propagate gradients backward to child nodes
+void ReLUBackward::backward() {
+    Tensor dLdy = *tensor;
+    copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdy.data.get());
+
+    for (size_t i = 0; i < input->total_elements; i++) {
+        if (dLdy.data.get()[i] > 0) {
+            input->grad.get()[i] = 1;
+        }
+        else {
+            input->grad.get()[i] = 0;
+        }
+    }
+
+    // cout << "===============================================================================" << endl;
+    // cout << "A ReLUBackward node has the gradients:" << endl;
+    // for (size_t i = 0; i < input->total_elements; i++) {
+    //     cout << input->grad.get()[i] << ", ";
+    // }
+    // cout << endl << "===============================================================================" << endl;
+}
+
+// Function to return the type of Node
+string ReLUBackward::name() {
+    return "ReLUBackward";
 }
 
 // ---------------------------------------------------------------------------

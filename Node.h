@@ -115,6 +115,24 @@ class MatmulBackward : public Node {
 
 // ---------------------------------------------------------------------------
 
+// Node for ReLU in the automatic differentiation graph that inherits from the Node class
+class ReLUBackward : public Node {
+    shared_ptr<Tensor> input;
+
+    public:
+        // Constructor for the ReLUBackward class
+        ReLUBackward(shared_ptr<Tensor> input);
+
+        // Function to propagate gradients backward to child nodes
+        void backward() override;
+
+        // Function to return the type of Node
+        string name() override;
+};
+
+// ---------------------------------------------------------------------------
+
+
 // Node for log softmax in the automatic differentiation graph that inherits from the Node class
 class LogSoftmaxBackward : public Node {
     shared_ptr<Tensor> input;

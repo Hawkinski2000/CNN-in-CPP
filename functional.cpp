@@ -12,6 +12,12 @@ Tensor relu(const Tensor& input) {
     for (size_t i = 0; i < input.total_elements; i++) {
         result.data.get()[i] = max(0.0f, input.data.get()[i]);
     }
+
+    if (input.requires_grad) {
+        result.node = make_shared<ReLUBackward>(make_shared<Tensor>(input));
+        result.node->tensor = &result;
+    }
+
     return result;
 }
 
