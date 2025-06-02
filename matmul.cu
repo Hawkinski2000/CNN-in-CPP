@@ -18,6 +18,21 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
     cublasHandle_t handle;
     cublasCreate(&handle);
 
+    cublasOperation_t transa;
+    cublasOperation_t transb;
+    if (transpose_a) {
+        transa = CUBLAS_OP_T;
+    }
+    else {
+        transa = CUBLAS_OP_N;
+    }
+    if (transpose_b) {
+        transb = CUBLAS_OP_T;
+    }
+    else {
+        transb = CUBLAS_OP_N;
+    }
+
     if (dimensions.size() == 1) {
         dimensions = {1, dimensions[0]};
     }
@@ -25,13 +40,40 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
         other.dimensions = {1, other.dimensions[0]};
     }
 
-    size_t m, n, k;
-    m = dimensions[dimensions.size() - 2];
-    k = dimensions[dimensions.size() - 1];
-    n = other.dimensions[other.dimensions.size() - 1];
+    size_t A_rows_orig = dimensions[dimensions.size() - 2];
+    size_t A_cols_orig = dimensions[dimensions.size() - 1];
+    size_t B_rows_orig = other.dimensions[other.dimensions.size() - 2];
+    size_t B_cols_orig = other.dimensions[other.dimensions.size() - 1];
 
-    size_t lda = m;
-    size_t ldb = other.dimensions[other.dimensions.size() - 2];
+    size_t effective_A_rows;
+    size_t effective_A_cols;
+    size_t effective_B_cols;
+    if (transpose_a) {
+        effective_A_rows = A_cols_orig;
+        effective_A_cols = A_rows_orig;
+    }
+    else {
+        effective_A_rows = A_rows_orig;
+        effective_A_cols = A_cols_orig;
+    }
+    if (transpose_b) {
+        effective_B_cols = B_rows_orig;
+    }
+    else {
+        effective_B_cols = B_cols_orig;
+    }
+
+    size_t m_result, n_result, k_result;
+    m_result = effective_A_rows;
+    k_result = effective_A_cols;
+    n_result = effective_B_cols;
+    size_t m_cublas = n_result;
+    size_t n_cublas = m_result;
+    size_t k_cublas = k_result;
+
+    size_t lda = B_cols_orig;
+    size_t ldb = A_cols_orig;
+    size_t ldc = n_result;
 
     vector<size_t> A_batch_dims;
     if (dimensions.size() > 2) {
@@ -55,24 +97,14 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
         B_batch_count *= dim;
     }
 
-    auto transa = CUBLAS_OP_N;
-    auto transb = CUBLAS_OP_N;
-    if (transpose_a) {
-        transa = CUBLAS_OP_T;
-        m = dimensions[dimensions.size() - 1];
-        k = dimensions[dimensions.size() - 2];
-    }
-    if (transpose_b) {
-        transb = CUBLAS_OP_T;
-        n = other.dimensions[other.dimensions.size() - 2];
-    }
-
-    size_t strideA = m * k, strideB = k * n, strideC = m * n;
+    size_t strideA = (B_rows_orig * B_cols_orig);
+    size_t strideB = (A_rows_orig * A_cols_orig);
+    size_t strideC = (m_cublas * n_cublas);
     if (A_batch_dims.size() == 1 && A_batch_dims[0] == 1) {
-        strideA = 0;
+        strideB = 0;
     }
     else if (B_batch_dims.size() == 1 && B_batch_dims[0] == 1) {
-        strideB = 0;
+        strideA = 0;
     }
 
     size_t batch_count = 1;
@@ -127,34 +159,54 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
     else {
         B = other.data.get();
     }
-    float* C = new float[batch_count * m * n];
+    float* C = new float[batch_count * m_result * n_result];
 
-    size_t A_mem = sizeof(float) * m * k;
-    size_t B_mem = sizeof(float) * k * n;
-    size_t C_mem = sizeof(float) * batch_count * m * n;
-    if (strideA > 0) {
-        A_mem *= batch_count;
-    }
+    size_t A_mem_size = sizeof(float) * A_rows_orig * A_cols_orig;
+    size_t B_mem_size = sizeof(float) * B_rows_orig * B_cols_orig;
+    size_t C_mem_size = sizeof(float) * batch_count * m_cublas * n_cublas;
     if (strideB > 0) {
-        B_mem *= batch_count;
+        A_mem_size *= batch_count;
+    }
+    if (strideA > 0) {
+        B_mem_size *= batch_count;
     }
 
-    cudaMalloc((void **)&dA, A_mem);
-    cudaMalloc((void **)&dB, B_mem);
-    cudaMalloc((void **)&dC, C_mem);
+    cudaMalloc((void **)&dA, A_mem_size);
+    cudaMalloc((void **)&dB, B_mem_size);
+    cudaMalloc((void **)&dC, C_mem_size);
 
-    cudaMemcpy(dA, A, A_mem, cudaMemcpyHostToDevice);
-    cudaMemcpy(dB, B, B_mem, cudaMemcpyHostToDevice);
-    cudaMemcpy(dC, C, C_mem, cudaMemcpyHostToDevice);
+    cudaMemcpy(dA, A, A_mem_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(dB, B, B_mem_size, cudaMemcpyHostToDevice);
+    cudaMemset(dC, 0, C_mem_size);
 
     float alpha = 1, beta = 0; // GEMM input parameters, C=α*AB+β*C
 
-    cublasGemmStridedBatchedEx(handle, transa, transb, m, n, k, &alpha, dA, CUDA_R_32F,
-                lda, strideA, dB, CUDA_R_32F, ldb, strideB, &beta, dC, CUDA_R_32F, m, strideC, batch_count,
-                CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+    cublasGemmStridedBatchedEx(handle,
+                               transb,
+                               transa,
+                               m_cublas,
+                               n_cublas,
+                               k_cublas,
+                               &alpha,
+                               dB,
+                               CUDA_R_32F,
+                               lda,
+                               strideA,
+                               dA,
+                               CUDA_R_32F,
+                               ldb,
+                               strideB,
+                               &beta,
+                               dC,
+                               CUDA_R_32F,
+                               ldc,
+                               strideC,
+                               batch_count,
+                               CUBLAS_COMPUTE_32F,
+                               CUBLAS_GEMM_DEFAULT_TENSOR_OP);
 
     cudaDeviceSynchronize();
-    cudaMemcpy(C, dC, C_mem, cudaMemcpyDeviceToHost);
+    cudaMemcpy(C, dC, C_mem_size, cudaMemcpyDeviceToHost);
 
     cudaFree(dA);
     cudaFree(dB);
@@ -165,15 +217,16 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
     if (batch_count > 1) {
         vector<size_t> result_dims(result_batch_dims.size() + 2);
         copy(result_batch_dims.begin(), result_batch_dims.end(), result_dims.begin());
-        result_dims[result_batch_dims.size()] = m;
-        result_dims[result_batch_dims.size() + 1] = n;
+        result_dims[result_batch_dims.size()] = m_result;
+        result_dims[result_batch_dims.size() + 1] = n_result;
         result = Tensor::empty(result_dims);
     }
     else {
-        result = Tensor::empty({m, n});
+        result = Tensor::empty({m_result, n_result});
     }
 
     result.data = shared_ptr<float>(C, default_delete<float[]>());
+    result.total_elements = batch_count * m_result * n_result;
 
     if (create_node) {
         if (requires_grad || other.requires_grad) {
@@ -181,6 +234,6 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
             result.node->tensor = &result;
         }
     }
-    
+
     return result;
 }
