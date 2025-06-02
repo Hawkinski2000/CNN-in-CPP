@@ -16,4 +16,7 @@ class Engine {
 
         // Function to compute the gradient of the current tensor w.r.t. graph leaves.
         static void run_backward(shared_ptr<Node> root);
+
+        // Function to clear the automatic differentiation graph starting from the root node.
+        static void clear_graph(shared_ptr<Node> root);
 };
