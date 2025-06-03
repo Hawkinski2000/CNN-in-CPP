@@ -15,7 +15,7 @@ Module::Module() = default;
 Module::~Module() = default;
 
 // Overload the () operator to call forward() 
-Tensor Module::operator()(Tensor& input) {
+Tensor Module::operator()(Tensor input) {
     return forward(input);
 }
 

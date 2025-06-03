@@ -248,10 +248,11 @@ class Tensor {
 
         // ---------------------------------------------------------------------------
 
+        shared_ptr<float> data;
         bool requires_grad = true;
         shared_ptr<float> grad = nullptr;
         shared_ptr<Node> node = nullptr;
-        shared_ptr<float> data;
+        
     private:
         friend class Node;
         friend class AddBackward;
@@ -259,6 +260,7 @@ class Tensor {
         friend class MulBackward;
         friend class DivBackward;
         friend class MatmulBackward;
+        friend class ReLUBackward;
         friend class LogSoftmaxBackward;
         friend class NLLLossBackward;
 

@@ -14,7 +14,7 @@ Node::~Node() = default;
 // ---------------------------------------------------------------------------
 
 // Constructor for the AddBackward class
-AddBackward::AddBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_shared<Tensor>(*a)), rhs(b) {
+AddBackward::AddBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(a), rhs(b) {
     if (lhs->node) {
         children.push_back({lhs->node});
     }
@@ -26,20 +26,9 @@ AddBackward::AddBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_
 // Function to propagate gradients backward to child nodes
 void AddBackward::backward() {
     for (size_t i = 0; i < tensor->total_elements; i++) {
-        lhs->grad.get()[i] += tensor->grad.get()[i];
-        rhs->grad.get()[i] += tensor->grad.get()[i];
+        lhs->grad.get()[i % lhs->total_elements] += tensor->grad.get()[i];
+        rhs->grad.get()[i % rhs->total_elements] += tensor->grad.get()[i];
     }
-
-    // cout << "===============================================================================" << endl;
-    // cout << "An AddBackward node has the gradients:" << endl;
-    // for (size_t i = 0; i < lhs->total_elements; i++) {
-    //     cout << lhs->grad.get()[i] << ", ";
-    // }
-    // cout << "and ";
-    // for (size_t i = 0; i < rhs->total_elements; i++) {
-    //     cout << rhs->grad.get()[i] << ", ";
-    // }
-    // cout << endl << "===============================================================================" << endl;
 }
 
 // Function to return the type of Node
@@ -50,7 +39,7 @@ string AddBackward::name() {
 // ---------------------------------------------------------------------------
 
 // Constructor for the SubBackward class
-SubBackward::SubBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_shared<Tensor>(*a)), rhs(b) {
+SubBackward::SubBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(a), rhs(b) {
     if (lhs->node) {
         children.push_back({lhs->node});
     }
@@ -75,7 +64,7 @@ string SubBackward::name() {
 // ---------------------------------------------------------------------------
 
 // Constructor for the MulBackward class
-MulBackward::MulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_shared<Tensor>(*a)), rhs(b) {
+MulBackward::MulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(a), rhs(b) {
     if (lhs->node) {
         children.push_back({lhs->node});
     }
@@ -100,7 +89,7 @@ string MulBackward::name() {
 // ---------------------------------------------------------------------------
 
 // Constructor for the DivBackward class
-DivBackward::DivBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_shared<Tensor>(*a)), rhs(b) {
+DivBackward::DivBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(a), rhs(b) {
     if (lhs->node) {
         children.push_back({lhs->node});
     }
@@ -125,7 +114,7 @@ string DivBackward::name() {
 // ---------------------------------------------------------------------------
 
 // Constructor for the MatmulBackward class
-MatmulBackward::MatmulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(make_shared<Tensor>(*a)), rhs(b) {
+MatmulBackward::MatmulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs(a), rhs(b) {
     if (lhs->node) {
         children.push_back({lhs->node});
     }
@@ -138,6 +127,7 @@ MatmulBackward::MatmulBackward(shared_ptr<Tensor> a, shared_ptr<Tensor> b) : lhs
 void MatmulBackward::backward() {
     Tensor dLdc = *tensor;
     copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdc.data.get());
+
     Tensor dLda = dLdc.matmul(*rhs, false, true, false);
     Tensor dLdb = lhs->matmul(dLdc, true, false, false);
 
@@ -169,6 +159,7 @@ void MatmulBackward::backward() {
     size_t m = lhs->dimensions[lhs->dimensions.size() - 2];
     size_t k = lhs->dimensions[lhs->dimensions.size() - 1];
     size_t n = rhs->dimensions[rhs->dimensions.size() - 1];
+
     // A and B were both broadcast
     if (C_batch_count > A_batch_count && C_batch_count > B_batch_count) {
         if (lhs->requires_grad) {
@@ -182,6 +173,7 @@ void MatmulBackward::backward() {
             }
         }
     }
+
     // Only B was broadcast
     else if (A_batch_count > B_batch_count) {
         if (lhs->requires_grad) {
@@ -195,6 +187,7 @@ void MatmulBackward::backward() {
             }
         }
     }
+
     // Only A was broadcast
     else if (B_batch_count > A_batch_count) {
         if (lhs->requires_grad) {
@@ -208,6 +201,8 @@ void MatmulBackward::backward() {
             }
         }
     }
+
+    // No broadcasting
     else {
         if (lhs->requires_grad) {
             for (size_t i = 0; i < lhs->total_elements; i++) {
@@ -220,17 +215,6 @@ void MatmulBackward::backward() {
             }
         }
     }
-
-    // cout << "===============================================================================" << endl;
-    // cout << "A MatmulBackward node has the gradients:" << endl;
-    // for (size_t i = 0; i < lhs->total_elements; i++) {
-    //     cout << lhs->grad.get()[i] << ", ";
-    // }
-    // cout << "and ";
-    // for (size_t i = 0; i < rhs->total_elements; i++) {
-    //     cout << rhs->grad.get()[i] << ", ";
-    // }
-    // cout << endl << "===============================================================================" << endl;
 }
 
 // Function to return the type of Node
@@ -253,20 +237,13 @@ void ReLUBackward::backward() {
     copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdy.data.get());
 
     for (size_t i = 0; i < input->total_elements; i++) {
-        if (dLdy.data.get()[i] > 0) {
-            input->grad.get()[i] = 1;
+        if (input->data.get()[i] > 0) {
+            input->grad.get()[i] = dLdy.grad.get()[i];
         }
         else {
             input->grad.get()[i] = 0;
         }
     }
-
-    // cout << "===============================================================================" << endl;
-    // cout << "A ReLUBackward node has the gradients:" << endl;
-    // for (size_t i = 0; i < input->total_elements; i++) {
-    //     cout << input->grad.get()[i] << ", ";
-    // }
-    // cout << endl << "===============================================================================" << endl;
 }
 
 // Function to return the type of Node
@@ -289,18 +266,11 @@ void LogSoftmaxBackward::backward() {
     copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdy.data.get());
     Tensor sum_dLdy = dLdy.sum(1);
     Tensor sum_dLdy_p = sum_dLdy * *softmax_values;
+    dLdy.requires_grad = false;
     Tensor dLdx = dLdy - sum_dLdy_p;
-
     for (size_t i = 0; i < input->total_elements; i++) {
         input->grad.get()[i] += dLdx.data.get()[i];
     }
-
-    // cout << "===============================================================================" << endl;
-    // cout << "A LogSoftmaxBackward node has the gradients:" << endl;
-    // for (size_t i = 0; i < input->total_elements; i++) {
-    //     cout << input->grad.get()[i] << ", ";
-    // }
-    // cout << endl << "===============================================================================" << endl;
 }
 
 // Function to return the type of Node
@@ -327,13 +297,6 @@ void NLLLossBackward::backward() {
         size_t idx = i * num_classes + target_class;
         input->grad.get()[idx] = -1 / static_cast<float>(batch_size);
     }
-
-    // cout << "===============================================================================" << endl;
-    // cout << "A NLLLossBackward node has the gradients:" << endl;
-    // for (size_t i = 0; i < input->total_elements; i++) {
-    //     cout << input->grad.get()[i] << ", ";
-    // }
-    // cout << endl << "===============================================================================" << endl;
 }
 
 // Function to return the type of Node

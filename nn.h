@@ -20,7 +20,7 @@ class Module {
         virtual Tensor forward(Tensor& input) = 0;
 
         // Overload the () operator to call forward()
-        Tensor operator()(Tensor& input);
+        Tensor operator()(Tensor input);
 
         // Function to return a vector containing the Module's parameters
         virtual vector<Tensor*> parameters();

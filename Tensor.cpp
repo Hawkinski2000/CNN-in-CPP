@@ -2,6 +2,8 @@
 #include <memory>
 #include <random>
 #include <cmath>
+#include <fstream>
+#include <iomanip>
 #include "Tensor.h"
 #include "Engine.h"
 #include "nn.h"
@@ -705,7 +707,6 @@ Tensor Tensor::operator+(Tensor& other) {
         vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
         vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
         vector<size_t> result_strides = compute_strides(result_dims);
-
         vector<size_t> indices(result_dims.size(), 0);
 
         do {
@@ -1054,301 +1055,324 @@ void Tensor::backward() {
 
 
 int main() {
-    Tensor a = Tensor::tensor({2, 4});
-    cout << "The first element in the tensor a is " << a[0] << endl;
-    cout << "The tensor a has the shape: " << a.shape_str() << endl << endl;
+    // Tensor a = Tensor::tensor({2, 4});
+    // cout << "The first element in the tensor a is " << a[0] << endl;
+    // cout << "The tensor a has the shape: " << a.shape_str() << endl << endl;
 
-    vector<float> vec = {2, 4};
-    Tensor b = Tensor::tensor(vec);
-    cout << "The first element in the tensor b is " << b[0] << endl;
-    cout << "The tensor b has the shape: " << b.shape_str() << endl << endl;
+    // vector<float> vec = {2, 4};
+    // Tensor b = Tensor::tensor(vec);
+    // cout << "The first element in the tensor b is " << b[0] << endl;
+    // cout << "The tensor b has the shape: " << b.shape_str() << endl << endl;
 
-    Tensor c = Tensor::empty({2, 2});
-    cout << "The first element in the tensor c is " << c[0][0] << endl;
-    cout << "The tensor c has the shape: " << c.shape_str() << endl << endl;
+    // Tensor c = Tensor::empty({2, 2});
+    // cout << "The first element in the tensor c is " << c[0][0] << endl;
+    // cout << "The tensor c has the shape: " << c.shape_str() << endl << endl;
 
-    Tensor d = Tensor::zeros({2, 16});
-    cout << "The first element in the tensor d is " << d[0][0] << endl;
-    cout << "The tensor d has the shape: " << d.shape_str() << endl << endl;
+    // Tensor d = Tensor::zeros({2, 16});
+    // cout << "The first element in the tensor d is " << d[0][0] << endl;
+    // cout << "The tensor d has the shape: " << d.shape_str() << endl << endl;
 
-    Tensor e = Tensor::ones({8, 4});
-    cout << "The first element in the tensor e is " << e[0][0] << endl;
-    cout << "The tensor e has the shape: " << e.shape_str() << endl << endl;
+    // Tensor e = Tensor::ones({8, 4});
+    // cout << "The first element in the tensor e is " << e[0][0] << endl;
+    // cout << "The tensor e has the shape: " << e.shape_str() << endl << endl;
 
-    cout << "The tensor e contains:" << endl;
-    cout << e << endl;
+    // cout << "The tensor e contains:" << endl;
+    // cout << e << endl;
 
-    Tensor f = e + e;
-    cout << "The sum of tensor e with itself is tensor f, which contains:" << endl;
-    cout << f << endl << endl;
+    // Tensor f = e + e;
+    // cout << "The sum of tensor e with itself is tensor f, which contains:" << endl;
+    // cout << f << endl << endl;
 
-    Tensor g = e - f;
-    cout << "The difference between tensor e and tensor f is tensor g, which contains:" << endl;
-    cout << g << endl << endl;
+    // Tensor g = e - f;
+    // cout << "The difference between tensor e and tensor f is tensor g, which contains:" << endl;
+    // cout << g << endl << endl;
 
-    Tensor h = f * f;
-    cout << "The product of tensor f with itself is tensor h, which contains:" << endl;
-    cout << h << endl << endl;
+    // Tensor h = f * f;
+    // cout << "The product of tensor f with itself is tensor h, which contains:" << endl;
+    // cout << h << endl << endl;
 
-    Tensor i = e / h;
-    cout << "The quotient of tensor e and tensor h is tensor i, which contains:" << endl;
-    cout << i << endl << endl;
+    // Tensor i = e / h;
+    // cout << "The quotient of tensor e and tensor h is tensor i, which contains:" << endl;
+    // cout << i << endl << endl;
 
-    i[0][0] = 2;
-    cout << "After assigning the value 2 to the first index in tensor i, it now contains:" << endl;
-    cout << i << endl << endl;
+    // i[0][0] = 2;
+    // cout << "After assigning the value 2 to the first index in tensor i, it now contains:" << endl;
+    // cout << i << endl << endl;
 
-    Tensor j; 
-    j = Tensor::ones({4, 4});
-    cout << "The tensor j created using the default constructor and move assignment operator contains:" << endl;
-    cout << j << endl << endl;
+    // Tensor j; 
+    // j = Tensor::ones({4, 4});
+    // cout << "The tensor j created using the default constructor and move assignment operator contains:" << endl;
+    // cout << j << endl << endl;
 
-    cout << "The product of tensor h with itself is a tensor containing:" << endl;
-    cout << h * h << endl << endl;
+    // cout << "The product of tensor h with itself is a tensor containing:" << endl;
+    // cout << h * h << endl << endl;
 
-    Tensor k = j + 2.5;
-    cout << "The sum of tensor j and 2.5 is tensor k, which contains:" << endl;
-    cout << k << endl << endl;
+    // Tensor k = j + 2.5;
+    // cout << "The sum of tensor j and 2.5 is tensor k, which contains:" << endl;
+    // cout << k << endl << endl;
 
-    Tensor l = j - 2.5;
-    cout << "The difference between tensor j and 2.5 is tensor l, which contains:" << endl;
-    cout << l << endl << endl;
+    // Tensor l = j - 2.5;
+    // cout << "The difference between tensor j and 2.5 is tensor l, which contains:" << endl;
+    // cout << l << endl << endl;
 
-    Tensor m = k * 2;
-    cout << "The product of tensor k and 2 is tensor m, which contains:" << endl;
-    cout << m << endl << endl;
+    // Tensor m = k * 2;
+    // cout << "The product of tensor k and 2 is tensor m, which contains:" << endl;
+    // cout << m << endl << endl;
 
-    Tensor n = l / 2;
-    cout << "The quotient of tensor l and 2 is tensor n, which contains:" << endl;
-    cout << n << endl << endl;
+    // Tensor n = l / 2;
+    // cout << "The quotient of tensor l and 2 is tensor n, which contains:" << endl;
+    // cout << n << endl << endl;
 
-    m += k;
-    cout << "After adding tensor k to tensor m, tensor m now contains:" << endl;
-    cout << m << endl << endl;
+    // m += k;
+    // cout << "After adding tensor k to tensor m, tensor m now contains:" << endl;
+    // cout << m << endl << endl;
 
-    m -= j;
-    cout << "After subtracting tensor j from tensor m, tensor m now contains:" << endl;
-    cout << m << endl << endl;
+    // m -= j;
+    // cout << "After subtracting tensor j from tensor m, tensor m now contains:" << endl;
+    // cout << m << endl << endl;
 
-    m *= n;
-    cout << "After multiplying tensor m by tensor n, tensor m now contains:" << endl;
-    cout << m << endl << endl;
+    // m *= n;
+    // cout << "After multiplying tensor m by tensor n, tensor m now contains:" << endl;
+    // cout << m << endl << endl;
 
-    m /= l;
-    cout << "After dividing tensor m by tensor l, tensor m now contains:" << endl;
-    cout << m << endl << endl;
+    // m /= l;
+    // cout << "After dividing tensor m by tensor l, tensor m now contains:" << endl;
+    // cout << m << endl << endl;
 
-    m += 1;
-    cout << "After adding 1 to tensor m, it now contains:" << endl;
-    cout << m << endl << endl;
+    // m += 1;
+    // cout << "After adding 1 to tensor m, it now contains:" << endl;
+    // cout << m << endl << endl;
 
-    m -= 2.5;
-    cout << "After subtracting 2.5 from tensor m, it now contains:" << endl;
-    cout << m << endl << endl;
+    // m -= 2.5;
+    // cout << "After subtracting 2.5 from tensor m, it now contains:" << endl;
+    // cout << m << endl << endl;
 
-    m *= 2;
-    cout << "After multiplying tensor m by 2, it now contains:" << endl;
-    cout << m << endl << endl;
+    // m *= 2;
+    // cout << "After multiplying tensor m by 2, it now contains:" << endl;
+    // cout << m << endl << endl;
 
-    m /= 3;
-    cout << "After dividing tensor m by 3, it now contains:" << endl;
-    cout << m << endl << endl;
+    // m /= 3;
+    // cout << "After dividing tensor m by 3, it now contains:" << endl;
+    // cout << m << endl << endl;
 
-    cout << "The tensor m has the shape: " << m.shape_str() << endl;
-    Tensor o = m.view({2, 2, 4});
-    cout << "The tensor m was reshaped with view() to a new tensor o with the shape: " << o.shape_str() << endl << endl;
+    // cout << "The tensor m has the shape: " << m.shape_str() << endl;
+    // Tensor o = m.view({2, 2, 4});
+    // cout << "The tensor m was reshaped with view() to a new tensor o with the shape: " << o.shape_str() << endl << endl;
 
-    cout << "The tensor o has the shape: " << o.shape_str() << endl;
-    Tensor p = o.view({2, 2, 2, 2});
-    cout << "The tensor o was reshaped with view() to a new tensor p with the shape: " << p.shape_str() << endl << endl;
+    // cout << "The tensor o has the shape: " << o.shape_str() << endl;
+    // Tensor p = o.view({2, 2, 2, 2});
+    // cout << "The tensor o was reshaped with view() to a new tensor p with the shape: " << p.shape_str() << endl << endl;
 
-    cout << "The tensor p has the shape: " << p.shape_str() << endl;
-    Tensor q = p.view({8, -1});
-    cout << "The tensor p was reshaped with view() to a new tensor q with the shape: " << q.shape_str() << endl << endl;
+    // cout << "The tensor p has the shape: " << p.shape_str() << endl;
+    // Tensor q = p.view({8, -1});
+    // cout << "The tensor p was reshaped with view() to a new tensor q with the shape: " << q.shape_str() << endl << endl;
 
-    cout << "The tensor q has the shape: " << q.shape_str() << endl;
-    q = q.flatten();
-    cout << "The tensor q was flattened and now has the shape: " << q.shape_str() << endl << endl;
+    // cout << "The tensor q has the shape: " << q.shape_str() << endl;
+    // q = q.flatten();
+    // cout << "The tensor q was flattened and now has the shape: " << q.shape_str() << endl << endl;
 
-    cout << "The tensor o has the shape: " << o.shape_str() << endl;
-    o = o.transpose(0, 2);
-    cout << "The tensor o was transposed along dimensions 0 and 2 and now has the shape: " << o.shape_str() << endl << endl;
+    // cout << "The tensor o has the shape: " << o.shape_str() << endl;
+    // o = o.transpose(0, 2);
+    // cout << "The tensor o was transposed along dimensions 0 and 2 and now has the shape: " << o.shape_str() << endl << endl;
 
-    cout << "The tensor j contains:" << endl << j << endl;
-    j = j.sum();
-    cout << "After applying sum to tensor j, it now contains:" << endl << j << endl << endl;
+    // cout << "The tensor j contains:" << endl << j << endl;
+    // j = j.sum();
+    // cout << "After applying sum to tensor j, it now contains:" << endl << j << endl << endl;
 
-    cout << "The tensor f contains:" << endl << f << endl;
-    f = f.pow(2);
-    cout << "After applying pow(2) to tensor f, it now contains:" << endl << f << endl << endl;
+    // cout << "The tensor f contains:" << endl << f << endl;
+    // f = f.pow(2);
+    // cout << "After applying pow(2) to tensor f, it now contains:" << endl << f << endl << endl;
 
-    Tensor r = Tensor::tensor({1, 2});
-    cout << "The tensor r contains:" << endl << r << endl;
-    r = r.mean();
-    cout << "After applying mean to tensor r, it now contains:" << endl << r << endl << endl;
+    // Tensor r = Tensor::tensor({1, 2});
+    // cout << "The tensor r contains:" << endl << r << endl;
+    // r = r.mean();
+    // cout << "After applying mean to tensor r, it now contains:" << endl << r << endl << endl;
 
-    vector<size_t> vec2 = {4, 2};
-    Tensor s = Tensor::empty(vec2);
-    cout << "The tensor s has the shape: " << s.shape_str() << endl << endl;
+    // vector<size_t> vec2 = {4, 2};
+    // Tensor s = Tensor::empty(vec2);
+    // cout << "The tensor s has the shape: " << s.shape_str() << endl << endl;
 
-    cout << "The tensor f has the shape: " << f.shape_str() << endl;
-    cout << "The tensor f contains:" << endl << f << endl;
-    Tensor t = Tensor::ones({4});
-    cout << "The tensor t has the shape: " << t.shape_str() << endl;
-    cout << "The tensor t contains:" << endl << t << endl;
-    f = f + t;
-    cout << "After adding tensor t to tensor f, tensor f now contains:" << endl << f << endl << endl;
+    // cout << "The tensor f has the shape: " << f.shape_str() << endl;
+    // cout << "The tensor f contains:" << endl << f << endl;
+    // Tensor t = Tensor::ones({4});
+    // cout << "The tensor t has the shape: " << t.shape_str() << endl;
+    // cout << "The tensor t contains:" << endl << t << endl;
+    // f = f + t;
+    // cout << "After adding tensor t to tensor f, tensor f now contains:" << endl << f << endl << endl;
 
-    cout << "The tensor f contains:" << endl << f << endl;
-    t *= 2;
-    cout << "The tensor t contains:" << endl << t << endl;
-    f = f - t;
-    cout << "After subtracting tensor t from tensor f, tensor f now contains:" << endl << f << endl << endl;
+    // cout << "The tensor f contains:" << endl << f << endl;
+    // t *= 2;
+    // cout << "The tensor t contains:" << endl << t << endl;
+    // f = f - t;
+    // cout << "After subtracting tensor t from tensor f, tensor f now contains:" << endl << f << endl << endl;
 
-    cout << "The tensor f contains:" << endl << f << endl;
-    cout << "The tensor t contains:" << endl << t << endl;
-    f = f * t;
-    cout << "After multiplying tensor f by tensor t, tensor f now contains:" << endl << f << endl << endl;
+    // cout << "The tensor f contains:" << endl << f << endl;
+    // cout << "The tensor t contains:" << endl << t << endl;
+    // f = f * t;
+    // cout << "After multiplying tensor f by tensor t, tensor f now contains:" << endl << f << endl << endl;
 
-    cout << "The tensor f contains:" << endl << f << endl;
-    t += 1;
-    cout << "The tensor t contains:" << endl << t << endl;
-    f = f / t;
-    cout << "After dividing tensor f by tensor t, tensor f now contains:" << endl << f << endl << endl;
+    // cout << "The tensor f contains:" << endl << f << endl;
+    // t += 1;
+    // cout << "The tensor t contains:" << endl << t << endl;
+    // f = f / t;
+    // cout << "After dividing tensor f by tensor t, tensor f now contains:" << endl << f << endl << endl;
 
-    vector<size_t> vec3 = {4, 2};
-    Tensor u = Tensor::zeros(vec2);
-    cout << "The tensor u has the shape: " << u.shape_str() << endl << endl;
+    // vector<size_t> vec3 = {4, 2};
+    // Tensor u = Tensor::zeros(vec2);
+    // cout << "The tensor u has the shape: " << u.shape_str() << endl << endl;
 
-    vector<size_t> vec4 = {4, 2};
-    Tensor v = Tensor::ones(vec2);
-    cout << "The tensor v has the shape: " << v.shape_str() << endl << endl;
+    // vector<size_t> vec4 = {4, 2};
+    // Tensor v = Tensor::ones(vec2);
+    // cout << "The tensor v has the shape: " << v.shape_str() << endl << endl;
 
-    Tensor w = Tensor::tensor({1, 2, 3, 4});
-    cout << "The tensor w contains:" << endl << w << endl;
-    Tensor x = w.min();
-    cout << "The result of applying min() to tensor w is a new tensor x, which contains:" << endl << x << endl << endl;
+    // Tensor w = Tensor::tensor({1, 2, 3, 4});
+    // cout << "The tensor w contains:" << endl << w << endl;
+    // Tensor x = w.min();
+    // cout << "The result of applying min() to tensor w is a new tensor x, which contains:" << endl << x << endl << endl;
 
-    cout << "The tensor w contains:" << endl << w << endl;
-    x = w.max();
-    cout << "The result of applying max() to tensor w is a new tensor x, which contains:" << endl << x << endl << endl;
+    // cout << "The tensor w contains:" << endl << w << endl;
+    // x = w.max();
+    // cout << "The result of applying max() to tensor w is a new tensor x, which contains:" << endl << x << endl << endl;
     
-    cout << "The tensor w contains:" << endl << w << endl;
-    bool equal = w.equal(w);
-    cout << "The result of applying equal() to tensor w and itself is: " << equal << endl << endl;
+    // cout << "The tensor w contains:" << endl << w << endl;
+    // bool equal = w.equal(w);
+    // cout << "The result of applying equal() to tensor w and itself is: " << equal << endl << endl;
 
-    cout << "The tensor w contains:" << endl << w << endl;
-    cout << "The tensor x contains:" << endl << x << endl;
-    equal = w.equal(x);
-    cout << "The result of applying equal() to tensor w and tensor x is: " << equal << endl << endl;
+    // cout << "The tensor w contains:" << endl << w << endl;
+    // cout << "The tensor x contains:" << endl << x << endl;
+    // equal = w.equal(x);
+    // cout << "The result of applying equal() to tensor w and tensor x is: " << equal << endl << endl;
 
-    Tensor y = Tensor::ones({4, 2, 4});
-    y *= 3;
-    cout << "The tensor y contains:" << endl << y << endl;
-    Tensor z = Tensor::ones({4, 4, 2});
-    z *= 2;
-    cout << "The tensor z contains:" << endl << z << endl;    
-    z = y.matmul(z);
-    cout << "After applying matmul to tensors y and z and storing the result in z, the tensor z now contains:" << endl << z << endl;
-    cout << "The tensor z has the shape: " << z.shape_str() << endl << endl;
+    // Tensor y = Tensor::ones({4, 2, 4});
+    // y *= 3;
+    // cout << "The tensor y contains:" << endl << y << endl;
+    // Tensor z = Tensor::ones({4, 4, 2});
+    // z *= 2;
+    // cout << "The tensor z contains:" << endl << z << endl;    
+    // z = y.matmul(z);
+    // cout << "After applying matmul to tensors y and z and storing the result in z, the tensor z now contains:" << endl << z << endl;
+    // cout << "The tensor z has the shape: " << z.shape_str() << endl << endl;
 
-    Tensor A = Tensor::rand({4, 4});
-    cout << "The tensor A contains:" << endl << A << endl << endl;
+    // Tensor A = Tensor::rand({4, 4});
+    // cout << "The tensor A contains:" << endl << A << endl << endl;
 
-    Tensor B = Tensor::ones({2, 4}) * 2;
-    cout << "The tensor B contains:" << endl << B << endl;
-    cout << "The tensor B has the shape: " << B.shape_str() << endl;
-    Tensor C = B.sum(0);
-    cout << "After applying sum with dim 0 to tensor B and storing in tensor C, tensor C contains:" << endl << C << endl;
-    cout << "The tensor C has the shape: " << C.shape_str() << endl;
-    C = B.sum(1);
-    cout << "After applying sum with dim 1 to tensor B and storing in tensor C, tensor C contains:" << endl << C << endl;
-    cout << "The tensor C has the shape: " << C.shape_str() << endl << endl;
+    // Tensor B = Tensor::ones({2, 4}) * 2;
+    // cout << "The tensor B contains:" << endl << B << endl;
+    // cout << "The tensor B has the shape: " << B.shape_str() << endl;
+    // Tensor C = B.sum(0);
+    // cout << "After applying sum with dim 0 to tensor B and storing in tensor C, tensor C contains:" << endl << C << endl;
+    // cout << "The tensor C has the shape: " << C.shape_str() << endl;
+    // C = B.sum(1);
+    // cout << "After applying sum with dim 1 to tensor B and storing in tensor C, tensor C contains:" << endl << C << endl;
+    // cout << "The tensor C has the shape: " << C.shape_str() << endl << endl;
 
-    Tensor D = Tensor::ones({4, 4}) * 2;
-    cout << "The tensor D contains:" << endl << D << endl;
-    Tensor E = D.exp();
-    cout << "After applying exp to tensor D and storing in tensor E, tensor E contains:" << endl << E << endl << endl;
+    // Tensor D = Tensor::ones({4, 4}) * 2;
+    // cout << "The tensor D contains:" << endl << D << endl;
+    // Tensor E = D.exp();
+    // cout << "After applying exp to tensor D and storing in tensor E, tensor E contains:" << endl << E << endl << endl;
 
-    Tensor F = Tensor::ones({2, 2});
-    F[0][1] += 1;
-    F[1][0] += 2;
-    F[1][1] += 3;
-    cout << "The tensor F contains:" << endl << F << endl;
-    cout << "The tensor F has the shape: " << F.shape_str() << endl;
-    Tensor G = F.max(0);
-    cout << "After applying max with dim 0 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl;
-    G = F.max(1);
-    cout << "After applying max with dim 1 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl << endl;
+    // Tensor F = Tensor::ones({2, 2});
+    // F[0][1] += 1;
+    // F[1][0] += 2;
+    // F[1][1] += 3;
+    // cout << "The tensor F contains:" << endl << F << endl;
+    // cout << "The tensor F has the shape: " << F.shape_str() << endl;
+    // Tensor G = F.max(0);
+    // cout << "After applying max with dim 0 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl;
+    // G = F.max(1);
+    // cout << "After applying max with dim 1 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl << endl;
 
-    G = F.min(0);
-    cout << "After applying min with dim 0 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl;
-    G = F.min(1);
-    cout << "After applying min with dim 1 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl << endl;
+    // G = F.min(0);
+    // cout << "After applying min with dim 0 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl;
+    // G = F.min(1);
+    // cout << "After applying min with dim 1 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl << endl;
 
-    G = F.argmax(0);
-    cout << "After applying argmax with dim 0 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl;
-    G = F.argmax(1);
-    cout << "After applying argmax with dim 1 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl << endl;
+    // G = F.argmax(0);
+    // cout << "After applying argmax with dim 0 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl;
+    // G = F.argmax(1);
+    // cout << "After applying argmax with dim 1 to tensor F and storing in tensor G, tensor G contains:" << endl << G << endl << endl;
 
-    Tensor H = Tensor::empty({3, 3});
-    H[0][0] = 4.8;
-    H[0][1] = 1.21;
-    H[0][2] = 2.385;
-    H[1][0] = 8.9;
-    H[1][1] = -1.81;
-    H[1][2] = 0.2;
-    H[2][0] = 1.41;
-    H[2][1] = 1.051;
-    H[2][2] = 0.026;
-    cout << "The tensor H contains:" << endl << H << endl; 
-    cout << "The tensor H has the shape: " << H.shape_str() << endl;
-    H = softmax(H, 1);
-    cout << "After applying softmax to tensor H, it now contains:" << endl << H << endl << endl;
+    // Tensor H = Tensor::empty({3, 3});
+    // H[0][0] = 4.8;
+    // H[0][1] = 1.21;
+    // H[0][2] = 2.385;
+    // H[1][0] = 8.9;
+    // H[1][1] = -1.81;
+    // H[1][2] = 0.2;
+    // H[2][0] = 1.41;
+    // H[2][1] = 1.051;
+    // H[2][2] = 0.026;
+    // cout << "The tensor H contains:" << endl << H << endl; 
+    // cout << "The tensor H has the shape: " << H.shape_str() << endl;
+    // H = softmax(H, 1);
+    // cout << "After applying softmax to tensor H, it now contains:" << endl << H << endl << endl;
 
-    Tensor I = Tensor::ones({4, 4}) * 2;
-    cout << "The tensor I contains:" << endl << I << endl;
-    I = I.log();
-    cout << "After applying log to tensor I, it now contains:" << endl << I << endl << endl;
+    // Tensor I = Tensor::ones({4, 4}) * 2;
+    // cout << "The tensor I contains:" << endl << I << endl;
+    // I = I.log();
+    // cout << "After applying log to tensor I, it now contains:" << endl << I << endl << endl;
 
-    Tensor J = Tensor::tensor({2, 1, 0.1});
-    cout << "The tensor J contains:" << endl << J << endl;
-    J = log_softmax(J, 0);
-    cout << "After applying log softmax to tensor J, it now contains:" << endl << J << endl << endl;
+    // Tensor J = Tensor::tensor({2, 1, 0.1});
+    // cout << "The tensor J contains:" << endl << J << endl;
+    // J = log_softmax(J, 0);
+    // cout << "After applying log softmax to tensor J, it now contains:" << endl << J << endl << endl;
 
-    Tensor log_probs = Tensor::empty({2, 2});
-    log_probs[0][0] = -0.2;
-    log_probs[0][1] = -1.6;
-    log_probs[1][0] = -1.3;
-    log_probs[1][1] = -0.3;
-    cout << "The tensor log_probs contains:" << endl << log_probs << endl;
-    Tensor labels = Tensor::tensor({0, 1});
-    cout << "The tensor labels contains:" << endl << labels << endl;
-    Tensor nll = nll_loss(log_probs, labels);
-    cout << "After applying nll_loss to log_probs and labels and storing in the tensor nll, the tensor nll contains:" << endl << nll << endl << endl;
+    // cout << "-------------------------------------------------------------------------------" << endl << endl;
 
-    Tensor K = Tensor::empty({2, 2});
-    K[0][0] = 2;
-    K[0][1] = 1;
-    K[1][0] = 0.5;
-    K[1][1] = 1.5;
-    cout << "The tensor K contains:" << endl << K << endl;
-    cout << "The tensor labels contains:" << endl << labels << endl;
-    Tensor ce = cross_entropy(K, labels);
-    cout << "After applying cross_entropy to K and labels and storing in the tensor ce, the tensor ce contains:" << endl << ce << endl << endl;
+    // ---------------------------------------------------------------------------
+    // ---- Load Train Images and Labels from File ----
 
-    Tensor L = Tensor::tensor({-2, -1, 1, 2});
-    cout << "The tensor L contains:" << endl << L << endl;
-    L = relu(L);
-    cout << "After applying relu to the tensor L, it now contains:" << endl << L << endl << endl;
+    string train_images_path = "data/images/train_images.bin";
+    string train_labels_path = "data/labels/train_labels.bin";
+    ifstream train_images_file(train_images_path, ios::binary | ios::ate);
+    size_t train_images_file_size = train_images_file.tellg();
+    train_images_file.seekg(0, ios::beg); 
+    Tensor train_images = Tensor::empty({train_images_file_size});
+    char byte;
+    for (int i = 0; i < train_images_file_size; i++) {
+        train_images_file.read(&byte, 1);
+        train_images[i] = static_cast<float>(static_cast<uint8_t>(byte)) / 255;
+    }
+    ifstream train_labels_file(train_labels_path, ios::binary | ios::ate);
+    size_t train_labels_file_size = train_labels_file.tellg();
+    train_labels_file.seekg(0, ios::beg); 
+    Tensor train_labels = Tensor::empty({train_labels_file_size});
+    for (int i = 0; i < train_labels_file_size; i++) {
+        train_labels_file.read(&byte, 1);
+        train_labels[i] = static_cast<float>(static_cast<uint8_t>(byte));
+    }
 
-    cout << "-------------------------------------------------------------------------------" << endl << endl;
+    // ---------------------------------------------------------------------------
+    // ---- Load Test Images and Labels from File ----
+
+    string test_images_path = "data/images/test_images.bin";
+    string test_labels_path = "data/labels/test_labels.bin";
+    ifstream test_images_file(test_images_path, ios::binary | ios::ate);
+    size_t test_images_file_size = test_images_file.tellg();
+    test_images_file.seekg(0, ios::beg); 
+    Tensor test_images = Tensor::empty({test_images_file_size});
+    byte;
+    for (int i = 0; i < test_images_file_size; i++) {
+        test_images_file.read(&byte, 1);
+        test_images[i] = static_cast<float>(static_cast<uint8_t>(byte)) / 255;
+    }
+    ifstream test_labels_file(test_labels_path, ios::binary | ios::ate);
+    size_t test_labels_file_size = test_labels_file.tellg();
+    test_labels_file.seekg(0, ios::beg); 
+    Tensor test_labels = Tensor::empty({test_labels_file_size});
+    for (int i = 0; i < test_labels_file_size; i++) {
+        test_labels_file.read(&byte, 1);
+        test_labels[i] = static_cast<float>(static_cast<uint8_t>(byte));
+    }
+
+    // ---------------------------------------------------------------------------
+    // ---- Create an MLP Model for MNIST ----
 
     class Net : public Module {
         public:
-            Linear fc1 = Linear(784, 256);
-            Linear fc2 = Linear(256, 64);
-            Linear fc3 = Linear(64, 10);
+            Linear fc1 = Linear(784, 512);
+            Linear fc2 = Linear(512, 256);
+            Linear fc3 = Linear(256, 10);
             
             Net() {
                 modules = {&fc1, &fc2, &fc3};
@@ -1357,24 +1381,138 @@ int main() {
             Tensor forward(Tensor& x) override {
                 x = relu(fc1(x));
                 x = relu(fc2(x));
-                x = relu(fc3(x));
+                x = fc3(x);
                 return x;
             }
     };
 
     Net net;
-    Tensor inputs = Tensor::rand({2, 784});
-    Tensor targets = Tensor::tensor({0, 5});
-    Tensor outputs = net(inputs);
-    cout << "After forwarding the inputs tensor through the network, the outputs tensor contains contains:" << endl << outputs << endl;
-    outputs = log_softmax(outputs, 1);
-    cout << "After applying log softmax to the outputs tensor, it now contains:" << endl << outputs << endl;
-    cout << "The predicted class is: " << outputs.argmax(1) << endl;
-    cout << "The loss is: " << cross_entropy(outputs, targets) << endl;
-    cout << "net has ";
-    size_t params = 0;
-    for (Tensor* tensor : net.parameters()) {
-        params += tensor->numel();
+
+    // ---------------------------------------------------------------------------
+    // ---- Model Hyperparameters ----
+
+    size_t epochs = 5;
+    size_t batch_size = 64;
+    float lr = 0.1;
+
+    // ---------------------------------------------------------------------------
+    // ---- Loading Train Data ----
+
+    Tensor inputs;
+    Tensor targets;
+    Tensor outputs;
+    Tensor loss;
+    Tensor predictions;
+    float accuracy;
+    float avg_accuracy = 0;
+    float total = batch_size;
+    float correct;
+
+    size_t train_set_count = 60000;
+    size_t train_images_pos = 0;
+    size_t train_targets_pos = 0;
+    vector<Tensor> train_image_batches(train_set_count / batch_size);
+    vector<Tensor> train_label_batches(train_set_count / batch_size);
+    for (size_t i = 0; i < train_set_count / batch_size; i++) {
+        Tensor train_image_batch = Tensor::empty({batch_size, 784});
+        for (size_t k = 0; k < batch_size * 784; k++) {
+            train_image_batch.data.get()[k] = train_images.data.get()[train_images_pos + k];
+        }
+        train_images_pos += batch_size * 784;
+        train_image_batches[i] = train_image_batch;
+
+        Tensor train_label_batch = Tensor::empty({batch_size});
+        for (size_t k = 0; k < batch_size; k++) {
+            train_label_batch.data.get()[k] = train_labels.data.get()[train_targets_pos + k];
+        }
+        train_targets_pos += batch_size;
+        train_label_batches[i] = train_label_batch;
     }
-    cout << params << " parameters" << endl << endl;
+
+    // ---------------------------------------------------------------------------
+    // ---- Training Loop ----
+
+    size_t steps = epochs * (train_set_count / batch_size);
+    cout << "======== Training... ========" << endl;
+    for (size_t step = 0; step < steps; step++) {
+        correct = 0;
+        inputs = train_image_batches[step % (train_set_count / batch_size)];
+        targets = train_label_batches[step % (train_set_count / batch_size)];
+        outputs = net(inputs);
+        predictions = outputs.argmax(1);
+        for (size_t j = 0; j < predictions.numel(); j++) {
+            if (targets.data.get()[j] == predictions.data.get()[j]) {
+                correct += 1;
+            }
+        }
+        loss = cross_entropy(outputs, targets);
+        accuracy = (correct / total) * 100;
+        avg_accuracy += accuracy / 100;
+        if (step % 100 == 99) {
+            cout << "Step: " << step + 1 << "/" << steps << fixed << setprecision(4) << " | Loss: " << loss << fixed << setprecision(2) << " | Accuracy: " << accuracy << "%" << endl;
+            avg_accuracy = 0;
+        }
+        loss.backward();
+        for (Tensor* tensor : net.parameters()) {
+            for (size_t i = 0; i < tensor->numel(); i++) {
+                tensor->data.get()[i] -= lr * tensor->grad.get()[i];
+                tensor->grad.get()[i] = 0;
+            }
+        }
+        Engine::clear_graph(loss.node);
+        for (size_t i = 0; i < inputs.numel(); i++) {
+            inputs.grad.get()[i] = 0;
+        }
     }
+
+    // ---------------------------------------------------------------------------
+    // ---- Loading Test Data ----
+
+    size_t test_set_count = 10000;
+    size_t test_images_pos = 0;
+    size_t test_targets_pos = 0;
+    vector<Tensor> test_image_batches(test_set_count / batch_size);
+    vector<Tensor> test_label_batches(test_set_count / batch_size);
+    for (size_t i = 0; i < test_set_count / batch_size; i++) {
+        Tensor test_image_batch = Tensor::empty({batch_size, 784});
+        for (size_t k = 0; k < batch_size * 784; k++) {
+            test_image_batch.data.get()[k] = test_images.data.get()[test_images_pos + k];
+        }
+        test_images_pos += batch_size * 784;
+        test_image_batches[i] = test_image_batch;
+
+        Tensor test_label_batch = Tensor::empty({batch_size});
+        for (size_t k = 0; k < batch_size; k++) {
+            test_label_batch.data.get()[k] = test_labels.data.get()[test_targets_pos + k];
+        }
+        test_targets_pos += batch_size;
+        test_label_batches[i] = test_label_batch;
+    }
+
+    // ---------------------------------------------------------------------------
+    // ---- Evaluation Loop ----
+
+    steps = test_set_count / batch_size;
+    correct = 0;
+    float avg_loss = 0;
+    cout << "======== Evaluating... ========" << endl;
+    for (size_t step = 0; step < steps; step++) {
+        inputs = test_image_batches[step % (test_set_count / batch_size)];
+        targets = test_label_batches[step % (test_set_count / batch_size)];
+        outputs = net(inputs);
+        predictions = outputs.argmax(1);
+        for (size_t j = 0; j < predictions.numel(); j++) {
+            if (targets.data.get()[j] == predictions.data.get()[j]) {
+                correct += 1;
+            }
+        }
+        loss = cross_entropy(outputs, targets);
+        avg_loss += loss.get_data()[0] / steps;
+        if (step % 10 == 9) {
+            cout << "Step: " << step + 1 << "/" << steps << fixed << setprecision(4) << " | Loss: " << loss << endl;
+        }
+        Engine::clear_graph(loss.node);
+    }
+    accuracy = (correct / test_set_count) * 100;
+    cout << endl << fixed << setprecision(2) << "Test Accuracy: " << accuracy << "%" << " | Average Loss: " << fixed << setprecision(4) << avg_loss << endl;
+}
