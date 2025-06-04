@@ -9,6 +9,8 @@ Module::Module() = default;
 // Destructor for the Module class
 Module::~Module() = default;
 
+vector<Module*> Module::modules;
+
 // Overload the () operator to call forward() 
 Tensor Module::operator()(Tensor input) {
     return forward(input);
@@ -17,7 +19,7 @@ Tensor Module::operator()(Tensor input) {
 // Function to return a vector containing the Module's parameters
 vector<Tensor*> Module::parameters() {
     vector<Tensor*> parameters;
-    for (Module* module : modules) {
+    for (Module* module : Module::modules) {
         vector<Tensor*> params = module->parameters();
         parameters.insert(parameters.end(), params.begin(), params.end());
     }
@@ -42,6 +44,7 @@ Linear::Linear(size_t in_features, size_t out_features, bool use_bias) {
         bias = Tensor::rand({out_features}, in_features);
         bias.requires_grad = true;
     }
+    Module::modules.push_back(this);
 }
 
 // Forwards inputs through the Linear layer

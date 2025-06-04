@@ -26,8 +26,7 @@ class Module {
         // Function to return the type of Module
         virtual string name();
 
-        vector<Module*> modules;
-
+        static vector<Module*> modules;
 };
 
 // ---------------------------------------------------------------------------
