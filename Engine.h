@@ -1,7 +1,5 @@
 #pragma once
-#include <memory>
 #include <unordered_set>
-#include <vector>
 #include "Node.h"
 using namespace std;
 
@@ -19,4 +17,9 @@ class Engine {
 
         // Function to clear the automatic differentiation graph starting from the root node.
         static void clear_graph(shared_ptr<Node> root);
+
+        // Function to get the current root node of the graph
+        static shared_ptr<Node> get_root();
+
+        static shared_ptr<Node> root;
 };

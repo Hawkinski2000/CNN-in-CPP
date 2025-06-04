@@ -1,5 +1,4 @@
 #include <iostream>
-#include <memory>
 #include <random>
 #include <cmath>
 #include <fstream>
@@ -8,10 +7,11 @@
 #include "Engine.h"
 #include "nn.h"
 #include "functional.h"
+#include "optim.h"
 using namespace std;
 
 
-// Compile with: nvcc -o Tensor Tensor.cpp Node.cpp Engine.cpp nn.cpp functional.cpp matmul.cu -lcublas
+// Compile with: nvcc -o Tensor Tensor.cpp Node.cpp Engine.cpp nn.cpp functional.cpp optim.cpp matmul.cu -lcublas
 
 /*
 ==============================================================================
@@ -1399,10 +1399,11 @@ int main() {
     // ---- Loading Train Data ----
 
     Tensor inputs;
-    Tensor targets;
+    Tensor labels;
     Tensor outputs;
     Tensor loss;
     Tensor predictions;
+    float running_loss = 0;
     float accuracy;
     float avg_accuracy = 0;
     float total = batch_size;
@@ -1410,7 +1411,7 @@ int main() {
 
     size_t train_set_count = 60000;
     size_t train_images_pos = 0;
-    size_t train_targets_pos = 0;
+    size_t train_labels_pos = 0;
     vector<Tensor> train_image_batches(train_set_count / batch_size);
     vector<Tensor> train_label_batches(train_set_count / batch_size);
     for (size_t i = 0; i < train_set_count / batch_size; i++) {
@@ -1423,45 +1424,43 @@ int main() {
 
         Tensor train_label_batch = Tensor::empty({batch_size});
         for (size_t k = 0; k < batch_size; k++) {
-            train_label_batch.data.get()[k] = train_labels.data.get()[train_targets_pos + k];
+            train_label_batch.data.get()[k] = train_labels.data.get()[train_labels_pos + k];
         }
-        train_targets_pos += batch_size;
+        train_labels_pos += batch_size;
         train_label_batches[i] = train_label_batch;
     }
 
     // ---------------------------------------------------------------------------
     // ---- Training Loop ----
 
+    SGD optimizer = SGD(net.parameters(), lr);
     size_t steps = epochs * (train_set_count / batch_size);
     cout << "======== Training... ========" << endl;
     for (size_t step = 0; step < steps; step++) {
-        correct = 0;
         inputs = train_image_batches[step % (train_set_count / batch_size)];
-        targets = train_label_batches[step % (train_set_count / batch_size)];
+        labels = train_label_batches[step % (train_set_count / batch_size)];
+
+        optimizer.zero_grad();
+
         outputs = net(inputs);
+        loss = cross_entropy(outputs, labels);
+        loss.backward();
+        optimizer.step();
+
+        running_loss += loss[0];
         predictions = outputs.argmax(1);
+        correct = 0;
         for (size_t j = 0; j < predictions.numel(); j++) {
-            if (targets.data.get()[j] == predictions.data.get()[j]) {
+            if (labels.data.get()[j] == predictions.data.get()[j]) {
                 correct += 1;
             }
         }
-        loss = cross_entropy(outputs, targets);
         accuracy = (correct / total) * 100;
         avg_accuracy += accuracy / 100;
         if (step % 100 == 99) {
-            cout << "Step: " << step + 1 << "/" << steps << fixed << setprecision(4) << " | Loss: " << loss << fixed << setprecision(2) << " | Accuracy: " << accuracy << "%" << endl;
+            cout << "Step: " << step + 1 << "/" << steps << fixed << setprecision(4) << " | Loss: " << running_loss / 100 << fixed << setprecision(2) << " | Accuracy: " << avg_accuracy << "%" << endl;
+            running_loss = 0;
             avg_accuracy = 0;
-        }
-        loss.backward();
-        for (Tensor* tensor : net.parameters()) {
-            for (size_t i = 0; i < tensor->numel(); i++) {
-                tensor->data.get()[i] -= lr * tensor->grad.get()[i];
-                tensor->grad.get()[i] = 0;
-            }
-        }
-        Engine::clear_graph(loss.node);
-        for (size_t i = 0; i < inputs.numel(); i++) {
-            inputs.grad.get()[i] = 0;
         }
     }
 
@@ -1470,7 +1469,7 @@ int main() {
 
     size_t test_set_count = 10000;
     size_t test_images_pos = 0;
-    size_t test_targets_pos = 0;
+    size_t test_labels_pos = 0;
     vector<Tensor> test_image_batches(test_set_count / batch_size);
     vector<Tensor> test_label_batches(test_set_count / batch_size);
     for (size_t i = 0; i < test_set_count / batch_size; i++) {
@@ -1483,9 +1482,9 @@ int main() {
 
         Tensor test_label_batch = Tensor::empty({batch_size});
         for (size_t k = 0; k < batch_size; k++) {
-            test_label_batch.data.get()[k] = test_labels.data.get()[test_targets_pos + k];
+            test_label_batch.data.get()[k] = test_labels.data.get()[test_labels_pos + k];
         }
-        test_targets_pos += batch_size;
+        test_labels_pos += batch_size;
         test_label_batches[i] = test_label_batch;
     }
 
@@ -1493,24 +1492,30 @@ int main() {
     // ---- Evaluation Loop ----
 
     steps = test_set_count / batch_size;
+    running_loss = 0;
     correct = 0;
     float avg_loss = 0;
     cout << "======== Evaluating... ========" << endl;
     for (size_t step = 0; step < steps; step++) {
         inputs = test_image_batches[step % (test_set_count / batch_size)];
-        targets = test_label_batches[step % (test_set_count / batch_size)];
+        labels = test_label_batches[step % (test_set_count / batch_size)];
+
         outputs = net(inputs);
+        loss = cross_entropy(outputs, labels);
+
+        running_loss += loss[0];
         predictions = outputs.argmax(1);
         for (size_t j = 0; j < predictions.numel(); j++) {
-            if (targets.data.get()[j] == predictions.data.get()[j]) {
+            if (labels.data.get()[j] == predictions.data.get()[j]) {
                 correct += 1;
             }
         }
-        loss = cross_entropy(outputs, targets);
-        avg_loss += loss.get_data()[0] / steps;
         if (step % 10 == 9) {
-            cout << "Step: " << step + 1 << "/" << steps << fixed << setprecision(4) << " | Loss: " << loss << endl;
+            cout << "Step: " << step + 1 << "/" << steps << fixed << setprecision(4) << " | Loss: " << running_loss / 10 << endl;
+            running_loss = 0;
         }
+        avg_loss += loss.get_data()[0] / steps;
+
         Engine::clear_graph(loss.node);
     }
     accuracy = (correct / test_set_count) * 100;

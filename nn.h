@@ -1,6 +1,4 @@
 #pragma once
-#include <vector>
-#include <memory>
 #include "Tensor.h"
 using namespace std;
 

@@ -1,7 +1,5 @@
 #include <iostream>
-#include <memory>
 #include "functional.h"
-#include "Tensor.h"
 #include "Node.h"
 using namespace std;
 
@@ -35,14 +33,14 @@ Tensor softmax(Tensor& input, optional<size_t> dim) {
 Tensor log_softmax(Tensor& input, optional<size_t> dim) {
     Tensor max = input.max(dim);
     input.requires_grad = false;
-    Tensor shifted_values = input - max; // Here!
+    Tensor shifted_values = input - max;
     input.requires_grad = true;
     Tensor exp_values = shifted_values.exp();
     Tensor sum_exp_values = exp_values.sum(dim);
     Tensor log_sum_exp_values = sum_exp_values.log();
     
     shifted_values.requires_grad = false;
-    Tensor result = shifted_values - log_sum_exp_values; // Here!
+    Tensor result = shifted_values - log_sum_exp_values;
 
     Tensor softmax_values = exp_values / sum_exp_values;
 

@@ -1,10 +1,5 @@
 #include <iostream>
-#include <vector>
-#include <memory>
-#include <cmath>
 #include "nn.h"
-#include "Tensor.h"
-#include "Node.h"
 using namespace std;
 
 
