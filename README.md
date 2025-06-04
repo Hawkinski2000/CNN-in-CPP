@@ -6,10 +6,10 @@ Built with modularity in mind, this project follows a PyTorch-like structure to 
 > [!NOTE]
 > Currently it's just an MLP, but I'm working on adding the Conv2d layers!
 
-Here are some of its features:
-● A neural network for handwritten digit classification using a custom deep learning framework built from scratch in C++.
-● Implements a Tensor class, a custom matrix multiplication function for fast operations on GPUs using cuBLAS, an autograd engine and graph for backpropagation, layers, activation functions, loss functions, and optimizers.
-● 97.2% test accuracy when classifying 10,000 new images of handwritten digits.
+Here are some of its features:  
+● A neural network for handwritten digit classification using a custom deep learning framework built from scratch in C++.  
+● Implements a Tensor class, a custom matrix multiplication function for fast operations on GPUs using cuBLAS, an autograd engine and graph for backpropagation, layers, activation functions, loss functions, and optimizers.  
+● 97.2% test accuracy when classifying 10,000 new images of handwritten digits.  
 
 # Example
 Create an MLP model for classifying handwritten digits from the MNIST dataset:
