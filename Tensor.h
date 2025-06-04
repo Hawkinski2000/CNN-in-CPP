@@ -224,6 +224,9 @@ class Tensor {
         // Function to return the elements in a tensor
         const float* get_data() const;
 
+        // Function to run tests on the Tensor class
+        void run_tests();
+
         // ---------------------------------------------------------------------------
 
         // Function to call Engine::run_backward() to compute the gradient of the current tensor w.r.t. graph leaves.
