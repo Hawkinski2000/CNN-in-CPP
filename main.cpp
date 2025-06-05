@@ -14,13 +14,14 @@ using namespace std;
 /*
 ==============================================================================
 TODO:
+    - Conv2d layer.
+    - Addition of bias in matmul() using C=α*AB+β*C for better performance.
     - Multiple Tensor data types.
     - pow() (floats and negatives as exponents).
     - squeeze()/unsqueeze().
-    - min() and max() (specifying dimensions to reduce).
+    - min() and max() (specifying multiple dimensions to reduce).
     - sum() (specifying multiple dimensions to reduce).
-    - mean() (specifying dimensions to reduce).
-    - exp().
+    - mean() (specifying multiple dimensions to reduce).
     - log().
     - cat().
     - == operator.

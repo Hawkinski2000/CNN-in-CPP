@@ -133,24 +133,18 @@ void MatmulBackward::backward() {
         for (size_t i = 0; i < lhs->dimensions.size() - 2; i++) {
             A_batch_count *= lhs->dimensions[i];
         }
-    } else {
-        A_batch_count = 1;
     }
     size_t B_batch_count = 1;
     if (rhs->dimensions.size() > 2) {
         for (size_t i = 0; i < rhs->dimensions.size() - 2; i++) {
             B_batch_count *= rhs->dimensions[i];
         }
-    } else {
-        B_batch_count = 1;
     }
     size_t C_batch_count = 1;
     if (tensor->dimensions.size() > 2) {
         for (size_t i = 0; i < tensor->dimensions.size() - 2; i++) {
             C_batch_count *= tensor->dimensions[i];
         }
-    } else {
-        C_batch_count = 1;
     }
 
     size_t m = lhs->dimensions[lhs->dimensions.size() - 2];

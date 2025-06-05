@@ -25,7 +25,7 @@ class Net : public Module {
             x = fc3(x);
             return x;
         }
-    };
+};
 
     Net net;
 ```
@@ -43,5 +43,5 @@ for (size_t step = 0; step < steps; step++) {
         loss = cross_entropy(outputs, labels);
         loss.backward();
         optimizer.step();
-    }
+}
 ```

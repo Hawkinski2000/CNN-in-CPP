@@ -52,3 +52,30 @@ class Linear : public Module {
         bool use_bias;
         Tensor bias;
 };
+
+// ---------------------------------------------------------------------------
+
+// A single 2D convolutional layer that inherits from the Module class
+class Conv2d : public Module {
+    public:
+        // Constructor for the Conv2d class
+        Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size, size_t stride=1, size_t padding=0, bool use_bias=true);
+
+        // Forwards inputs through the Conv2d layer
+        Tensor forward(Tensor& input) override;
+
+        // Function to return a vector containing the Conv2d layer's parameters
+        vector<Tensor*> parameters() override;
+
+        // Function to return the type of Module
+        string name() override;
+
+        size_t in_channels;
+        size_t out_channels;
+        size_t kernel_size;
+        size_t stride;
+        size_t padding;
+        Tensor weight;
+        bool use_bias;
+        Tensor bias;
+};
