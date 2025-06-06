@@ -20,3 +20,6 @@ Tensor cross_entropy(Tensor& input, Tensor& targets);
 
 // Function to extract sliding local blocks from a batched input tensor
 Tensor unfold(Tensor& input, initializer_list<size_t> kernel_size, size_t dilation=1, size_t padding=0, size_t stride=1);
+
+// Function to combine an array of sliding local blocks into a large containing tensor
+Tensor fold(Tensor& input, initializer_list<size_t> output_size, initializer_list<size_t> kernel_size, size_t dilation=1, size_t padding=0, size_t stride=1);

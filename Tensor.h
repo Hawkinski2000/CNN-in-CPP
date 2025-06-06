@@ -255,6 +255,9 @@ class Tensor {
         // Function to extract sliding local blocks from a batched input tensor
         friend Tensor unfold(Tensor& input, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride);
 
+        // Function to combine an array of sliding local blocks into a large containing tensor
+        friend Tensor fold(Tensor& input, initializer_list<size_t> output_size, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride);
+
         // ---------------------------------------------------------------------------
 
         shared_ptr<float> data;

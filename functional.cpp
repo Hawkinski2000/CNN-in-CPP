@@ -103,9 +103,10 @@ Tensor unfold(Tensor& input, initializer_list<size_t> kernel_size, size_t dilati
 
     size_t in_H = input.dimensions[2]; // input height
     size_t in_W = input.dimensions[3]; // input width
+
     size_t out_H = ((in_H + 2 * padding - dilation * (kH - 1) - 1) / stride) + 1; // output height
     size_t out_W = ((in_W + 2 * padding - dilation * (kW - 1) - 1) / stride) + 1; // output width
-    size_t L = out_H * out_W;
+    size_t L = out_H * out_W; // Total number of blocks
 
     Tensor result = Tensor::empty({N, (C * kH * kW), L});
 
@@ -115,10 +116,10 @@ Tensor unfold(Tensor& input, initializer_list<size_t> kernel_size, size_t dilati
             for (size_t out_w = 0; out_w < out_W; out_w++) { // Output width position
                 size_t patch_idx = 0; // Index within each patch vector
                 for (size_t c = 0; c < C; c++) { // Input channels
-                    for (size_t kh = 0; kh < kH; kh++) {
-                        for (size_t kw = 0; kw < kW; kw++) {
-                            int in_h = static_cast<int>(out_h * stride - padding + kh * dilation);
-                            int in_w = static_cast<int>(out_w * stride - padding + kw * dilation);
+                    for (size_t kh = 0; kh < kH; kh++) { // Row in kernel
+                        for (size_t kw = 0; kw < kW; kw++) { // Column in kernel
+                            int in_h = static_cast<int>(out_h * stride - padding + kh * dilation); // Row in input
+                            int in_w = static_cast<int>(out_w * stride - padding + kw * dilation); // Column in input
 
                             if (in_h >= 0 && in_h < in_H && in_w >= 0 && in_w < in_W) {
                                 result[n][patch_idx][col_idx] = input[n][c][in_h][in_w];
@@ -132,6 +133,53 @@ Tensor unfold(Tensor& input, initializer_list<size_t> kernel_size, size_t dilati
                     }
                 }
                 col_idx++;
+            }
+        }
+    }
+    return result;
+}
+
+// Function to combine an array of sliding local blocks into a large containing tensor
+Tensor fold(Tensor& input, initializer_list<size_t> output_size, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride) {
+    size_t kH = *kernel_size.begin(); // Kernel height
+    size_t kW; // Kernel width
+    if (kernel_size.size() == 1) {
+        kW = kH;
+    }
+    else {
+        kW = *(kernel_size.begin() + 1);
+    }
+
+    size_t out_H = *output_size.begin(); // Output height
+    size_t out_W = *(output_size.begin() + 1); // Output width
+
+    size_t N = input.dimensions[0]; // Batch size
+
+    size_t C = input.dimensions[1] / (kH * kW); // Channels
+
+    size_t L = input.dimensions[2]; // Total number of blocks
+
+    Tensor result = Tensor::zeros({N, C, out_H, out_W});
+
+    for (size_t n = 0; n < N; n++) {
+        for (size_t l = 0; l < L; l++) {
+            // The top-left corner of this patch
+            size_t out_i = l / ((out_W - kW + 2 * padding) / stride + 1);
+            size_t out_j = l % ((out_W - kW + 2 * padding) / stride + 1);
+
+            for (size_t c = 0; c < C; c++) { // Input channels
+                for (size_t kh = 0; kh < kH; kh++) { // Row in kernel
+                    for (size_t kw = 0; kw < kW; kw++) { // Column in kernel
+                        size_t out_h = out_i * stride - padding + kh * dilation; // Row in output
+                        size_t out_w = out_j * stride - padding + kw * dilation; // Column in output
+
+                        if (out_h < out_H && out_w < out_W) {
+                            size_t patch_idx = c * kH * kW + kh * kW + kw; // Index within each patch vector
+                            float value = input[n][patch_idx][l];
+                            result[n][c][out_h][out_w] += value;
+                        }
+                    }
+                }
             }
         }
     }

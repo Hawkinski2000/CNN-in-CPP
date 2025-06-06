@@ -1295,7 +1295,13 @@ void Tensor::run_tests() {
     cout << "After applying log softmax to tensor J, it now contains:" << endl << J << endl << endl;
 
     Tensor K = Tensor::ones({1, 1, 4, 4}) * 2;
-    Tensor L = unfold(K, {3}, 1, 1, 1);
-    cout << "The tensor L contains:" << endl << L << endl;
+    cout << "The tensor K contains:" << endl << K << endl;
+    cout << "The tensor K has shape: " << K.shape_str() << endl;
+    Tensor L = unfold(K, {2}, 1, 0, 2);
+    cout << "After applying unfold to tensor K and storing in tensor L, tensor L contains:" << endl << L << endl;
     cout << "The tensor L has shape: " << L.shape_str() << endl << endl;
+
+    Tensor M = fold(L, {4, 4}, {2, 2}, 1, 0, 2);
+    cout << "After applying fold to tensor L and storing in tensor M, tensor M contains:" << endl << M << endl;
+    cout << "The tensor M contains:" << M.shape_str() << endl << endl;
 }
