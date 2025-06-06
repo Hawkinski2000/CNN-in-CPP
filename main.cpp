@@ -34,8 +34,8 @@ TODO:
 */
 
 
-int main() {  
-// ---- Load Train Images and Labels from File ----
+int main() {
+    // ---- Load Train Images and Labels from File ----
 
     string train_images_path = "data/images/train_images.bin";
     string train_labels_path = "data/labels/train_labels.bin";

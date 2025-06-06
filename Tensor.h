@@ -23,6 +23,9 @@ class Tensor {
                 // Overload the = operator for assigning values to indices in the tensor
                 TensorSlice& operator=(float value);
 
+                // Overload the = operator for assigning values from another TensorSlice to indices in the tensor
+                TensorSlice& operator=(const TensorSlice& other);
+
                 // Overload the float reference conversion operator to return data after the final []
                 operator float&();
         
@@ -225,7 +228,7 @@ class Tensor {
         const float* get_data() const;
 
         // Function to run tests on the Tensor class
-        void run_tests();
+        static void run_tests();
 
         // ---------------------------------------------------------------------------
 
@@ -248,6 +251,9 @@ class Tensor {
 
         // Function to compute the cross entropy loss between input tensor and targets
         friend Tensor cross_entropy(Tensor& input, Tensor& targets);
+
+        // Function to extract sliding local blocks from a batched input tensor
+        friend Tensor unfold(Tensor& input, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride);
 
         // ---------------------------------------------------------------------------
 

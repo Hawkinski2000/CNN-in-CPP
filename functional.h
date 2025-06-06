@@ -17,3 +17,6 @@ Tensor nll_loss(Tensor& input, Tensor& targets);
 
 // Function to compute the cross entropy loss between input tensor and targets
 Tensor cross_entropy(Tensor& input, Tensor& targets);
+
+// Function to extract sliding local blocks from a batched input tensor
+Tensor unfold(Tensor& input, initializer_list<size_t> kernel_size, size_t dilation=1, size_t padding=0, size_t stride=1);

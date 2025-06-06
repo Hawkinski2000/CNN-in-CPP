@@ -1006,6 +1006,12 @@ Tensor::TensorSlice& Tensor::TensorSlice::operator=(float value) {
     return *this;
 }
 
+// Overload the = operator for assigning values from another TensorSlice to indices in the tensor
+Tensor::TensorSlice& Tensor::TensorSlice::operator=(const TensorSlice& other) {
+    data.get()[offset] = other.data.get()[other.offset];
+    return *this;
+}
+
 // Overload the float reference conversion operator to return data after the final []
 Tensor::TensorSlice::operator float&() {
     if (level != dimensions.size()) {
@@ -1287,4 +1293,9 @@ void Tensor::run_tests() {
     cout << "The tensor J contains:" << endl << J << endl;
     J = log_softmax(J, 0);
     cout << "After applying log softmax to tensor J, it now contains:" << endl << J << endl << endl;
+
+    Tensor K = Tensor::ones({1, 1, 4, 4}) * 2;
+    Tensor L = unfold(K, {3}, 1, 1, 1);
+    cout << "The tensor L contains:" << endl << L << endl;
+    cout << "The tensor L has shape: " << L.shape_str() << endl << endl;
 }
