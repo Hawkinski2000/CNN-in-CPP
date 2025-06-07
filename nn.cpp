@@ -1,5 +1,6 @@
 #include <iostream>
 #include "nn.h"
+#include "functional.h"
 using namespace std;
 
 
@@ -72,17 +73,24 @@ string Linear::name() {
 // ---------------------------------------------------------------------------
 
 // Constructor for the Conv2d class
-Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size, size_t stride, size_t padding, bool use_bias) {
+Conv2d::Conv2d(size_t in_channels, size_t out_channels, initializer_list<size_t> kernel_size, size_t stride, size_t padding, size_t dilation, bool use_bias) {
     this->in_channels = in_channels;
     this->out_channels = out_channels;
-    this->kernel_size = kernel_size;
+    kH = *kernel_size.begin();
+    if (kernel_size.size() == 1) {
+        kW = kH;
+    }
+    else {
+        kW = *(kernel_size.begin() + 1);
+    }
     this->stride = stride;
     this->padding = padding;
-    weight = Tensor::rand({out_channels, in_channels, kernel_size, kernel_size});
+    this->dilation = dilation; 
+    weight = Tensor::rand({out_channels, in_channels, kH, kW});
     weight.requires_grad = true;
     this->use_bias = use_bias;
     if (use_bias) {
-        bias = Tensor::rand({out_channels}, in_channels);
+        bias = Tensor::rand({1, out_channels, 1, 1});
         bias.requires_grad = true;
     }
     Module::modules.push_back(this);
@@ -90,7 +98,16 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size, size
 
 // Forwards inputs through the Conv2d layer
 Tensor Conv2d::forward(Tensor& input) {
-    Tensor result = input.matmul(weight);
+    Tensor inp_unf = unfold(input, {kH, kW});
+    Tensor w = weight.view({static_cast<int>(weight.shape()[0]), -1});
+    Tensor out_unf = inp_unf.matmul(w, true, true, false);
+    int N = input.shape()[0]; // Batch size
+    int C = out_channels;
+    size_t in_H = input.shape()[2]; // input height
+    size_t in_W = input.shape()[3]; // input width
+    int out_H = ((in_H + 2 * padding - dilation * (kH - 1) - 1) / stride) + 1; // output height
+    int out_W = ((in_W + 2 * padding - dilation * (kW - 1) - 1) / stride) + 1; // output width
+    Tensor result = out_unf.view({N, C, out_H, out_W});
     if (use_bias) {
         result = result + bias;
     }

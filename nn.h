@@ -59,7 +59,7 @@ class Linear : public Module {
 class Conv2d : public Module {
     public:
         // Constructor for the Conv2d class
-        Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size, size_t stride=1, size_t padding=0, bool use_bias=true);
+        Conv2d(size_t in_channels, size_t out_channels, initializer_list<size_t> kernel_size, size_t stride=1, size_t padding=0, size_t dilation=1, bool use_bias=true);
 
         // Forwards inputs through the Conv2d layer
         Tensor forward(Tensor& input) override;
@@ -72,9 +72,11 @@ class Conv2d : public Module {
 
         size_t in_channels;
         size_t out_channels;
-        size_t kernel_size;
+        size_t kH;
+        size_t kW;
         size_t stride;
         size_t padding;
+        size_t dilation;
         Tensor weight;
         bool use_bias;
         Tensor bias;
