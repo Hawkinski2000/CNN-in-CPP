@@ -96,14 +96,14 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
         B_batch_count *= dim;
     }
 
-    size_t strideA = (B_rows_orig * B_cols_orig);
-    size_t strideB = (A_rows_orig * A_cols_orig);
+    size_t strideA = (A_rows_orig * A_cols_orig);
+    size_t strideB = (B_rows_orig * B_cols_orig);
     size_t strideC = (m_cublas * n_cublas);
-    if (A_batch_dims.size() == 1 && A_batch_dims[0] == 1) {
-        strideB = 0;
-    }
-    else if (B_batch_dims.size() == 1 && B_batch_dims[0] == 1) {
+    if (A_batch_count == 1 and B_batch_count > 1) {
         strideA = 0;
+    }
+    else if (B_batch_count == 1 and A_batch_count > 1) {
+        strideB = 0;
     }
 
     size_t batch_count = 1;
@@ -163,10 +163,11 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
     size_t A_mem_size = sizeof(float) * A_rows_orig * A_cols_orig;
     size_t B_mem_size = sizeof(float) * B_rows_orig * B_cols_orig;
     size_t C_mem_size = sizeof(float) * batch_count * m_cublas * n_cublas;
-    if (strideB > 0) {
+
+    if (strideA > 0) {
         A_mem_size *= batch_count;
     }
-    if (strideA > 0) {
+    if (strideB > 0) {
         B_mem_size *= batch_count;
     }
 
@@ -190,11 +191,11 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
                                dB,
                                CUDA_R_32F,
                                lda,
-                               strideA,
+                               strideB,
                                dA,
                                CUDA_R_32F,
                                ldb,
-                               strideB,
+                               strideA,
                                &beta,
                                dC,
                                CUDA_R_32F,
