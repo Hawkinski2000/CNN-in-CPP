@@ -294,3 +294,67 @@ void NLLLossBackward::backward() {
 string NLLLossBackward::name() {
     return "NLLLossBackward";
 }
+
+// ---------------------------------------------------------------------------
+
+// Constructor for the Conv2dBackward class
+Conv2dBackward::Conv2dBackward(shared_ptr<Tensor> input,
+                               shared_ptr<Tensor> weight,
+                               shared_ptr<Tensor> inp_unf,
+                               initializer_list<size_t> kernel_size,
+                               size_t stride,
+                               size_t padding,
+                               size_t dilation)
+    : input(input),
+      weight(weight),
+      inp_unf(inp_unf),
+      kernel_size(kernel_size),
+      stride(stride),
+      padding(padding),
+      dilation(dilation) {
+    if (input->node) {
+        children.push_back({input->node});
+    }
+    if (weight->node) {
+        children.push_back({weight->node});
+    }
+}
+
+// Function to propagate gradients backward to child nodes
+void Conv2dBackward::backward() {
+    Tensor dLdc = *tensor;
+    copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdc.data.get());
+
+    int N = input->dimensions[0]; // Batch size
+
+    int out_channels = weight->dimensions[0];
+
+    dLdc = dLdc.view({N, out_channels, -1});
+    
+    Tensor dLdw = inp_unf->matmul(dLdc, false, true, false);
+    Tensor w = weight->view({out_channels, -1});
+    Tensor dLdx_unf = dLdc.matmul(w, true, false, false);
+
+    size_t kH = *kernel_size.begin();
+    size_t kW;
+    if (kernel_size.size() == 1) {
+        kW = kH;
+    }
+    else {
+        kW = *(kernel_size.begin() + 1);
+    }
+    dLdx_unf = dLdx_unf.transpose(1, 2);
+    Tensor dLdx = fold(dLdx_unf, {input->dimensions[2], input->dimensions[3]}, {kH, kW}, dilation, padding, stride);
+
+    for (size_t i = 0; i < dLdw.total_elements; i++) {
+        weight->grad.get()[i % weight->total_elements] += dLdw.data.get()[i];
+    }
+    for (size_t i = 0; i < dLdx.total_elements; i++) {
+        input->grad.get()[i % input->total_elements] += dLdx.data.get()[i];
+    }
+}
+
+// Function to return the type of Node
+string Conv2dBackward::name() {
+    return "Conv2dBackward";
+}

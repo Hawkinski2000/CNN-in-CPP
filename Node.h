@@ -165,3 +165,32 @@ class NLLLossBackward : public Node {
         // Function to return the type of Node
         string name() override;
 };
+
+// ---------------------------------------------------------------------------
+
+// Node for a 2D convolutional layer in the automatic differentiation graph that inherits from the Node class
+class Conv2dBackward : public Node {
+    shared_ptr<Tensor> input;
+    shared_ptr<Tensor> weight;
+    shared_ptr<Tensor> inp_unf;
+    vector<size_t> kernel_size;
+    size_t stride;
+    size_t padding;
+    size_t dilation;
+
+    public:
+        // Constructor for the Conv2dBackward class
+        Conv2dBackward(shared_ptr<Tensor> input,
+                       shared_ptr<Tensor> weight,
+                       shared_ptr<Tensor> inp_unf,
+                       initializer_list<size_t> kernel_size,
+                       size_t stride,
+                       size_t padding,
+                       size_t dilation);
+
+        // Function to propagate gradients backward to child nodes
+        void backward() override;
+
+        // Function to return the type of Node
+        string name() override;
+};
