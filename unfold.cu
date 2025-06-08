@@ -36,17 +36,28 @@ __global__ void unfold_kernel(const float* input,
 
     float val = 0;
     if (in_h >= 0 && in_h < in_H && in_w >= 0 && in_w < in_W) {
-        int input_idx = ((n * C + c) * in_H + in_h) * in_W + in_w;
+        int input_idx = ((n * C + c) * in_H + in_h) * in_W + in_w; // Index in the input tensor
         val = input[input_idx];
     }
 
-    int out_idx = ((n * (C * kH * kW) + patch_idx) * out_L) + l;
+    int out_idx = ((n * (C * kH * kW) + patch_idx) * out_L) + l; // Index in the unfolded output tensor
     output[out_idx] = val;
 }
 
-Tensor unfold_cuda(Tensor input, size_t kH, size_t kW, size_t dilation, size_t padding, size_t stride) {
+Tensor unfold_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride) {
+    size_t kH = *kernel_size.begin(); // Kernel height
+    size_t kW; // Kernel width
+    if (kernel_size.size() == 1) {
+        kW = kH;
+    }
+    else {
+        kW = *(kernel_size.begin() + 1);
+    }
+
     size_t N = input.dimensions[0]; // Batch size
+
     size_t C = input.dimensions[1]; // in_channels
+    
     size_t in_H = input.dimensions[2]; // input height
     size_t in_W = input.dimensions[3]; // input width
 
@@ -66,37 +77,27 @@ Tensor unfold_cuda(Tensor input, size_t kH, size_t kW, size_t dilation, size_t p
     }
 
     // Transfer the input tensor's data from CPU to GPU
-    cudaMemcpy(
-        input.device_data, // Destination: GPU memory
-        input.data.get(), // Source: CPU memory
-        sizeof(float) * input.total_elements, // Number of bytes
-        cudaMemcpyHostToDevice);
+    cudaMemcpy(input.device_data, input.data.get(), sizeof(float) * input.total_elements, cudaMemcpyHostToDevice);
 
-    unfold_kernel<<<gridDim, blockDim>>>(
-        input.device_data, // Input on GPU
-        result.device_data, // Output on GPU
-        N,
-        C,
-        in_H,
-        in_W,
-        kH,
-        kW,
-        out_H,
-        out_W,
-        stride,
-        padding,
-        dilation,
-        L);
+    unfold_kernel<<<gridDim, blockDim>>>(input.device_data,
+                                         result.device_data,
+                                         N,
+                                         C,
+                                         in_H,
+                                         in_W,
+                                         kH,
+                                         kW,
+                                         out_H,
+                                         out_W,
+                                         stride,
+                                         padding,
+                                         dilation,
+                                         L);
 
     cudaDeviceSynchronize();
 
     // Transfer the result tensor's data from GPU to CPU
-    cudaMemcpy(
-        result.data.get(), // Destination: CPU memory
-        result.device_data, // Source: GPU memory
-        sizeof(float) * result.total_elements, // Number of bytes
-        cudaMemcpyDeviceToHost
-    );
+    cudaMemcpy(result.data.get(), result.device_data, sizeof(float) * result.total_elements, cudaMemcpyDeviceToHost);
     
     return result;
 }

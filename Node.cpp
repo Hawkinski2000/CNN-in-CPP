@@ -344,7 +344,7 @@ void Conv2dBackward::backward() {
         kW = *(kernel_size.begin() + 1);
     }
     dLdx_unf = dLdx_unf.transpose(1, 2);
-    Tensor dLdx = fold(dLdx_unf, {input->dimensions[2], input->dimensions[3]}, {kH, kW}, dilation, padding, stride);
+    Tensor dLdx = fold_cuda(dLdx_unf, {input->dimensions[2], input->dimensions[3]}, {kH, kW}, dilation, padding, stride);
 
     for (size_t i = 0; i < dLdw.total_elements; i++) {
         weight->grad.get()[i % weight->total_elements] += dLdw.data.get()[i];

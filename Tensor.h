@@ -55,7 +55,7 @@ class Tensor {
         static Tensor empty(vector<size_t> dims);
 
         // Function to create a tensor of zeros from a specified shape
-        static Tensor zeros(initializer_list<size_t> dims);
+        static Tensor zeros(initializer_list<size_t> dims, bool use_cuda=false);
 
         // Function to create tensor of zeros from a shape specified as a vector
         static Tensor zeros(vector<size_t> dims);
@@ -256,10 +256,13 @@ class Tensor {
         friend Tensor unfold(Tensor& input, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride);
 
         // Function to extract sliding local blocks from a batched input tensor that runs on the GPU.
-        friend Tensor unfold_cuda(Tensor input, size_t kH, size_t kW, size_t dilation, size_t padding, size_t stride);
+        friend Tensor unfold_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride);
 
         // Function to combine an array of sliding local blocks into a large containing tensor
         friend Tensor fold(Tensor& input, initializer_list<size_t> output_size, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride);
+
+        // Function to combine an array of sliding local blocks into a large containing tensor that runs on the GPU.
+        friend Tensor fold_cuda(Tensor& input, initializer_list<size_t> output_size, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride);
 
         // ---------------------------------------------------------------------------
 

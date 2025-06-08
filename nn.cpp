@@ -101,7 +101,7 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, initializer_list<size_t>
 
 // Forwards inputs through the Conv2d layer
 Tensor Conv2d::forward(Tensor& input) {
-    Tensor inp_unf = unfold_cuda(input, kH, kW, dilation, padding, stride);
+    Tensor inp_unf = unfold_cuda(input, {kH, kW}, dilation, padding, stride);
     Tensor w = weight.view({static_cast<int>(weight.shape()[0]), -1});
 
     Tensor out_unf = inp_unf.matmul(w, true, true, false);

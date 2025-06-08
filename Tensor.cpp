@@ -149,8 +149,8 @@ Tensor Tensor::empty(vector<size_t> dims) {
 }
 
 // Function to create a tensor of zeros from a specified shape
-Tensor Tensor::zeros(initializer_list<size_t> dims) {
-    Tensor tensor(dims);
+Tensor Tensor::zeros(initializer_list<size_t> dims, bool use_cuda) {
+    Tensor tensor(dims, use_cuda);
     fill(tensor.data.get(), tensor.data.get() + tensor.total_elements, 0);
     return tensor;
 }
@@ -1311,5 +1311,5 @@ void Tensor::run_tests() {
 
     Tensor M = fold(L, {4, 4}, {2, 2}, 1, 0, 2);
     cout << "After applying fold to tensor L and storing in tensor M, tensor M contains:" << endl << M << endl;
-    cout << "The tensor M contains:" << M.shape_str() << endl << endl;
+    cout << "The tensor M has shape:" << M.shape_str() << endl << endl;
 }

@@ -37,7 +37,6 @@ void Engine::clear_graph(shared_ptr<Node> root) {
     vector<Node*> topo;
     
     trace_graph(root, visited, topo);
-
     for (size_t i = 0; i < topo.size(); i++) {
         topo[i]->children.clear();
     }

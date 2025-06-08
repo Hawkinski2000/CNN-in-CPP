@@ -170,8 +170,8 @@ Tensor fold(Tensor& input, initializer_list<size_t> output_size, initializer_lis
             for (size_t c = 0; c < C; c++) { // Input channel index
                 for (size_t kh = 0; kh < kH; kh++) { // Kernel height position
                     for (size_t kw = 0; kw < kW; kw++) { // Kernel width position
-                        size_t out_h = out_i * stride - padding + kh * dilation; // Row in output
-                        size_t out_w = out_j * stride - padding + kw * dilation; // Column in output
+                        size_t out_h = out_i * stride - padding + kh * dilation; // output height position
+                        size_t out_w = out_j * stride - padding + kw * dilation; // output width position
 
                         if (out_h < out_H && out_w < out_W) {
                             size_t patch_idx = c * kH * kW + kh * kW + kw; // Index within each patch vector
