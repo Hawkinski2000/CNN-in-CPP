@@ -1,6 +1,7 @@
 #include <iostream>
 #include "nn.h"
 #include "functional.h"
+#include "Node.h"
 using namespace std;
 
 
@@ -51,9 +52,11 @@ Linear::Linear(size_t in_features, size_t out_features, bool use_bias) {
 // Forwards inputs through the Linear layer
 Tensor Linear::forward(Tensor& input) {
     Tensor result = input.matmul(weight);
+
     if (use_bias) {
         result = result + bias;
     }
+
     return result;
 }
 
@@ -98,9 +101,11 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, initializer_list<size_t>
 
 // Forwards inputs through the Conv2d layer
 Tensor Conv2d::forward(Tensor& input) {
-    Tensor inp_unf = unfold(input, {kH, kW});
+    Tensor inp_unf = unfold_cuda(input, kH, kW, dilation, padding, stride);
     Tensor w = weight.view({static_cast<int>(weight.shape()[0]), -1});
+
     Tensor out_unf = inp_unf.matmul(w, true, true, false);
+    
     int N = input.shape()[0]; // Batch size
     int C = out_channels;
     size_t in_H = input.shape()[2]; // input height
@@ -108,9 +113,22 @@ Tensor Conv2d::forward(Tensor& input) {
     int out_H = ((in_H + 2 * padding - dilation * (kH - 1) - 1) / stride) + 1; // output height
     int out_W = ((in_W + 2 * padding - dilation * (kW - 1) - 1) / stride) + 1; // output width
     Tensor result = out_unf.view({N, C, out_H, out_W});
+
+    if (input.requires_grad) {
+        result.node = make_shared<Conv2dBackward>(make_shared<Tensor>(input),
+                                                  make_shared<Tensor>(weight),
+                                                  make_shared<Tensor>(inp_unf),
+                                                  initializer_list<size_t>{kH, kW},
+                                                  stride,
+                                                  padding,
+                                                  dilation);
+        result.node->tensor = &result;
+    }
+
     if (use_bias) {
         result = result + bias;
     }
+
     return result;
 }
 

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <random>
+#include <cuda_runtime.h>
 #include "Tensor.h"
 #include "Engine.h"
 using namespace std;
@@ -39,7 +40,7 @@ Tensor::Tensor(Tensor&& other)
 }
 
 // Constructor for Tensor class used by creation methods that specify a shape as an initializer_list
-Tensor::Tensor(initializer_list<size_t> dims) {
+Tensor::Tensor(initializer_list<size_t> dims, bool use_cuda) {
     dimensions.resize(dims.size());
     size_t i = 0;
     for (size_t dim : dims) {
@@ -54,6 +55,11 @@ Tensor::Tensor(initializer_list<size_t> dims) {
     }
 
     data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+
+    // Allocate GPU memory for the tensor if specified
+    if (use_cuda) {
+        cudaMalloc(&device_data, total_elements * sizeof(float));
+    }
 
     // Calculate strides from tensor dimensions
     strides = compute_strides(dimensions);
@@ -133,8 +139,8 @@ Tensor::Tensor(const vector<float>& values) {
 // ---------------------------------------------------------------------------
 
 // Function to create an empty tensor from a shape specified as an initializer_list
-Tensor Tensor::empty(initializer_list<size_t> dims) {
-    return Tensor(dims);
+Tensor Tensor::empty(initializer_list<size_t> dims, bool use_cuda) {
+    return Tensor(dims, use_cuda);
 }
 
 // Function to create an empty tensor from a shape specified as a vector
@@ -296,6 +302,8 @@ Tensor Tensor::view(initializer_list<int> shape) {
     result.strides = compute_strides(result.dimensions);
 
     result.total_elements = total_elements;
+
+    result.grad = grad;
 
     return result;
 }

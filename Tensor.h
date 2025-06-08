@@ -49,7 +49,7 @@ class Tensor {
         // ---------------------------------------------------------------------------
 
         // Function to create an empty tensor from a shape specified as an initializer_list
-        static Tensor empty(initializer_list<size_t> dims);
+        static Tensor empty(initializer_list<size_t> dims, bool use_cuda=false);
 
         // Function to create an empty tensor from a shape specified as a vector
         static Tensor empty(vector<size_t> dims);
@@ -255,12 +255,16 @@ class Tensor {
         // Function to extract sliding local blocks from a batched input tensor
         friend Tensor unfold(Tensor& input, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride);
 
+        // Function to extract sliding local blocks from a batched input tensor that runs on the GPU.
+        friend Tensor unfold_cuda(Tensor input, size_t kH, size_t kW, size_t dilation, size_t padding, size_t stride);
+
         // Function to combine an array of sliding local blocks into a large containing tensor
         friend Tensor fold(Tensor& input, initializer_list<size_t> output_size, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride);
 
         // ---------------------------------------------------------------------------
 
         shared_ptr<float> data;
+        float* device_data = nullptr;
         bool requires_grad = true;
         shared_ptr<float> grad = nullptr;
         shared_ptr<Node> node = nullptr;
@@ -275,11 +279,12 @@ class Tensor {
         friend class ReLUBackward;
         friend class LogSoftmaxBackward;
         friend class NLLLossBackward;
+        friend class Conv2dBackward;
 
         // ---------------------------------------------------------------------------
 
         // Constructor for Tensor class used by creation methods that specify a shape as an initializer_list
-        Tensor(initializer_list<size_t> dims);
+        Tensor(initializer_list<size_t> dims, bool use_cuda=false);
 
         // Constructor for Tensor class used by creation methods that specify a shape as a vector
         Tensor(const vector<size_t>& dims);

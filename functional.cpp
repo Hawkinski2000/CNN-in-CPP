@@ -115,9 +115,9 @@ Tensor unfold(Tensor& input, initializer_list<size_t> kernel_size, size_t dilati
         for (size_t out_h = 0; out_h < out_H; out_h++) { // Output height position
             for (size_t out_w = 0; out_w < out_W; out_w++) { // Output width position
                 size_t patch_idx = 0; // Index within each patch vector
-                for (size_t c = 0; c < C; c++) { // Input channels
-                    for (size_t kh = 0; kh < kH; kh++) { // Row in kernel
-                        for (size_t kw = 0; kw < kW; kw++) { // Column in kernel
+                for (size_t c = 0; c < C; c++) { // Input channel index
+                    for (size_t kh = 0; kh < kH; kh++) { // Kernel height position
+                        for (size_t kw = 0; kw < kW; kw++) { // Kernel width position
                             int in_h = static_cast<int>(out_h * stride - padding + kh * dilation); // Row in input
                             int in_w = static_cast<int>(out_w * stride - padding + kw * dilation); // Column in input
 
@@ -125,9 +125,9 @@ Tensor unfold(Tensor& input, initializer_list<size_t> kernel_size, size_t dilati
                                 result[n][patch_idx][col_idx] = input[n][c][in_h][in_w];
                             }
                             else {
-                                result[n][patch_idx][col_idx] = 0.0f; // Zero padding
+                                result[n][patch_idx][col_idx] = 0; // Zero padding
                             }
-
+                            
                             patch_idx++;
                         }
                     }
@@ -167,9 +167,9 @@ Tensor fold(Tensor& input, initializer_list<size_t> output_size, initializer_lis
             size_t out_i = l / ((out_W - kW + 2 * padding) / stride + 1);
             size_t out_j = l % ((out_W - kW + 2 * padding) / stride + 1);
 
-            for (size_t c = 0; c < C; c++) { // Input channels
-                for (size_t kh = 0; kh < kH; kh++) { // Row in kernel
-                    for (size_t kw = 0; kw < kW; kw++) { // Column in kernel
+            for (size_t c = 0; c < C; c++) { // Input channel index
+                for (size_t kh = 0; kh < kH; kh++) { // Kernel height position
+                    for (size_t kw = 0; kw < kW; kw++) { // Kernel width position
                         size_t out_h = out_i * stride - padding + kh * dilation; // Row in output
                         size_t out_w = out_j * stride - padding + kw * dilation; // Column in output
 
