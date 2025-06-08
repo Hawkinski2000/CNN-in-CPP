@@ -46,6 +46,9 @@ class Tensor {
         // Move constructor for the Tensor class
         Tensor(Tensor&& other);
 
+        // Destructor for the Tensor class
+        ~Tensor();
+
         // ---------------------------------------------------------------------------
 
         // Function to create an empty tensor from a shape specified as an initializer_list
@@ -263,6 +266,10 @@ class Tensor {
 
         // Function to combine an array of sliding local blocks into a large containing tensor that runs on the GPU.
         friend Tensor fold_cuda(Tensor& input, initializer_list<size_t> output_size, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride);
+
+        friend void debug_fold_comparison(Tensor& input, initializer_list<size_t> output_size, 
+                          initializer_list<size_t> kernel_size, size_t dilation, 
+                          size_t padding, size_t stride);
 
         // ---------------------------------------------------------------------------
 

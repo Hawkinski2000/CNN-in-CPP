@@ -23,8 +23,8 @@ __global__ void fold_kernel(const float* input,
     }
 
     // The top-left corner of this patch
-    int out_i = l / ((out_W - kW + 2 * padding) / stride + 1);
-    int out_j = l % ((out_W - kW + 2 * padding) / stride + 1);
+    int out_i = l / out_W;
+    int out_j = l % out_W;
 
     int c = patch_idx / (kH * kW); // Input channel index
     int kh = (patch_idx / kW) % kH; // Kernel height position

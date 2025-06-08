@@ -136,6 +136,14 @@ Tensor::Tensor(const vector<float>& values) {
     fill(grad.get(), grad.get() + total_elements, 0);
 }
 
+// Destructor for the Tensor class
+Tensor::~Tensor() {
+    if (device_data) {
+        cudaFree(device_data);
+        device_data = nullptr;
+    }
+}
+
 // ---------------------------------------------------------------------------
 
 // Function to create an empty tensor from a shape specified as an initializer_list
