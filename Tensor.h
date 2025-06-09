@@ -267,9 +267,8 @@ class Tensor {
         // Function to combine an array of sliding local blocks into a large containing tensor that runs on the GPU.
         friend Tensor fold_cuda(Tensor& input, initializer_list<size_t> output_size, initializer_list<size_t> kernel_size, size_t dilation, size_t padding, size_t stride);
 
-        friend void debug_fold_comparison(Tensor& input, initializer_list<size_t> output_size, 
-                          initializer_list<size_t> kernel_size, size_t dilation, 
-                          size_t padding, size_t stride);
+        // Function to apply a 2D max pooling over an input tensor
+        friend Tensor maxpool2d_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t stride, size_t padding, size_t dilation);
 
         // ---------------------------------------------------------------------------
 

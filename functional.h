@@ -29,3 +29,6 @@ Tensor fold(Tensor& input, initializer_list<size_t> output_size, initializer_lis
 
 // Function to combine an array of sliding local blocks into a large containing tensor that runs on the GPU.
 Tensor fold_cuda(Tensor& input, initializer_list<size_t> output_size, initializer_list<size_t> kernel_size, size_t dilation=1, size_t padding=1, size_t stride=1);
+
+// Function to apply a 2D max pooling over an input tensor that runs on the GPU.
+Tensor maxpool2d_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t stride=0, size_t padding=0, size_t dilation=1);
