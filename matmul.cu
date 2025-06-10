@@ -34,9 +34,11 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
 
     if (dimensions.size() == 1) {
         dimensions = {1, dimensions[0]};
+        strides = {dimensions[0], 1};
     }
     if (other.dimensions.size() == 1) {
         other.dimensions = {1, other.dimensions[0]};
+        other.strides = {other.dimensions[0], 1};
     }
 
     size_t A_rows_orig = dimensions[dimensions.size() - 2];
@@ -130,6 +132,7 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
     }
     else {
         batch_count = A_batch_count;
+        result_batch_dims = A_batch_dims;
     }
 
     float *dA, *dB, *dC;
@@ -234,6 +237,5 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
             result.node->tensor = &result;
         }
     }
-
     return result;
 }
