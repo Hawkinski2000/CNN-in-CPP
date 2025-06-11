@@ -194,3 +194,30 @@ class Conv2dBackward : public Node {
         // Function to return the type of Node
         string name() override;
 };
+
+// ---------------------------------------------------------------------------
+
+// Node for a 2D max pooling layer in the automatic differentiation graph that inherits from the Node class
+class MaxPool2dBackward : public Node {
+    shared_ptr<Tensor> input;
+    shared_ptr<Tensor> max_indices;
+    vector<size_t> kernel_size;
+    size_t stride;
+    size_t padding;
+    size_t dilation;
+
+    public:
+        // Constructor for the MaxPool2dBackward class
+        MaxPool2dBackward(shared_ptr<Tensor> input,
+                          shared_ptr<Tensor> max_indices,
+                          initializer_list<size_t> kernel_size,
+                          size_t stride,
+                          size_t padding,
+                          size_t dilation);
+
+        // Function to propagate gradients backward to child nodes
+        void backward() override;
+
+        // Function to return the type of Node
+        string name() override;
+};

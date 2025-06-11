@@ -1,9 +1,11 @@
 #include <iostream>
 #include "Tensor.h"
+#include "Node.h"
 
 
 __global__ void maxpool2d_kernel(const float* input,
                                  float* output,
+                                 float* max_indices,
                                  int N,
                                  int C,
                                  int in_H,
@@ -30,6 +32,7 @@ __global__ void maxpool2d_kernel(const float* input,
     int in_j = out_w * stride - padding;
 
     float max_val = -INFINITY;
+    int max_idx;
 
     for (int kh = 0; kh < kH; kh++) {
         for (int kw = 0; kw < kW; kw++) {
@@ -38,13 +41,17 @@ __global__ void maxpool2d_kernel(const float* input,
 
             if (in_h >= 0 && in_h < in_H && in_w >= 0 && in_w < in_W) {
                 int input_idx = ((n * C + c) * in_H + in_h) * in_W + in_w;
-                max_val = max(max_val, input[input_idx]);
+                if (input[input_idx] > max_val) {
+                    max_val = input[input_idx];
+                    max_idx = input_idx;
+                }
             }
         }
     }
 
     int output_idx = ((n * C + c) * out_H + out_h) * out_W + out_w;
     output[output_idx] = max_val;
+    max_indices[output_idx] = max_idx;
 }
 
 Tensor maxpool2d_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t stride, size_t padding, size_t dilation) {
@@ -60,7 +67,7 @@ Tensor maxpool2d_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t
     if (stride == 0) {
         stride = kH;
     }
-
+    
     size_t N = input.dimensions[0]; // Batch size
 
     size_t C = input.dimensions[1]; // Channels
@@ -72,6 +79,7 @@ Tensor maxpool2d_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t
     size_t out_W = ((in_W + 2 * padding - dilation * (kW - 1) - 1) / stride) + 1; // Output width
 
     Tensor result = Tensor::empty({N, C, out_H, out_W}, true);
+    Tensor max_indices = Tensor::empty({N, C, out_H, out_W}, true);
 
     dim3 gridDim(N, C);
     dim3 blockDim(out_W, out_H);
@@ -86,6 +94,7 @@ Tensor maxpool2d_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t
 
     maxpool2d_kernel<<<gridDim, blockDim>>>(input.device_data,
                                             result.device_data,
+                                            max_indices.device_data,
                                             N,
                                             C,
                                             in_H,
@@ -102,6 +111,19 @@ Tensor maxpool2d_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t
 
     // Transfer the result tensor's data from GPU to CPU
     cudaMemcpy(result.data.get(), result.device_data, sizeof(float) * result.total_elements, cudaMemcpyDeviceToHost);
+
+    // Transfer the max_indices tensor's data from GPU to CPU
+    cudaMemcpy(max_indices.data.get(), max_indices.device_data, sizeof(float) * max_indices.total_elements, cudaMemcpyDeviceToHost);
+
+    if (input.requires_grad) {
+        result.node = make_shared<MaxPool2dBackward>(make_shared<Tensor>(input),
+                                                     make_shared<Tensor>(max_indices),
+                                                     initializer_list<size_t>{kH, kW},
+                                                     stride,
+                                                     padding,
+                                                     dilation);
+        result.node->tensor = &result;
+    }
 
     return result;
 }
