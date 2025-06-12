@@ -9,12 +9,11 @@
 using namespace std;
 
 
-// Compile with: nvcc -o main main.cpp Tensor.cpp Node.cpp Engine.cpp nn.cpp functional.cpp optim.cpp matmul.cu -lcublas
+// Compile with: nvcc -o main main.cpp Tensor.cpp Node.cpp Engine.cpp nn.cpp functional.cpp optim.cpp matmul.cu unfold.cu fold.cu maxpool2d.cu -lcublas -O3
 
 /*
 ==============================================================================
 TODO:
-    - Conv2d layer.
     - Addition of bias in matmul() using C=α*AB+β*C for better performance.
     - Multiple Tensor data types.
     - pow() (floats and negatives as exponents).
@@ -37,6 +36,7 @@ TODO:
 int main() {
     // ---- Load Train Images and Labels from File ----
 
+    cout << "Loading train data..." << endl;
     string train_images_path = "data/images/train_images.bin";
     string train_labels_path = "data/labels/train_labels.bin";
     ifstream train_images_file(train_images_path, ios::binary | ios::ate);
@@ -60,13 +60,13 @@ int main() {
     // ---------------------------------------------------------------------------
     // ---- Load Test Images and Labels from File ----
 
+    cout << "Loading test data..." << endl << endl;
     string test_images_path = "data/images/test_images.bin";
     string test_labels_path = "data/labels/test_labels.bin";
     ifstream test_images_file(test_images_path, ios::binary | ios::ate);
     size_t test_images_file_size = test_images_file.tellg();
     test_images_file.seekg(0, ios::beg); 
     Tensor test_images = Tensor::empty({test_images_file_size});
-    byte;
     for (int i = 0; i < test_images_file_size; i++) {
         test_images_file.read(&byte, 1);
         test_images[i] = static_cast<float>(static_cast<uint8_t>(byte)) / 255;
@@ -81,17 +81,24 @@ int main() {
     }
 
     // ---------------------------------------------------------------------------
-    // ---- Create an MLP Model for MNIST ----
+    // ---- Create an CNN Model for MNIST ----
 
     class Net : public Module {
-        Linear fc1 = Linear(784, 512);
-        Linear fc2 = Linear(512, 256);
-        Linear fc3 = Linear(256, 10);
+        Conv2d conv1 = Conv2d(1, 16, {3}, 1, 1);
+        Conv2d conv2 = Conv2d(16, 32, {3}, 1, 1);
+        Conv2d conv3 = Conv2d(32, 64, {3}, 1, 1);
+        Linear fc1 = Linear(3136, 128);
+        Linear fc2 = Linear(128, 10);
 
         Tensor forward(Tensor& x) override {
+            x = relu(conv1(x));
+            x = relu(conv2(x));
+            x = maxpool2d_cuda(x, {2});
+            x = relu(conv3(x));
+            x = maxpool2d_cuda(x, {2});
+            x = x.view({-1, 3136});
             x = relu(fc1(x));
-            x = relu(fc2(x));
-            x = fc3(x);
+            x = fc2(x);
             return x;
         }
     };
@@ -114,7 +121,7 @@ int main() {
     vector<Tensor> train_image_batches(train_set_count / batch_size);
     vector<Tensor> train_label_batches(train_set_count / batch_size);
     for (size_t i = 0; i < train_set_count / batch_size; i++) {
-        Tensor train_image_batch = Tensor::empty({batch_size, 784});
+        Tensor train_image_batch = Tensor::empty({batch_size, 1, 28, 28});
         for (size_t k = 0; k < batch_size * 784; k++) {
             train_image_batch.data.get()[k] = train_images.data.get()[train_images_pos + k];
         }
@@ -184,7 +191,7 @@ int main() {
     vector<Tensor> test_image_batches(test_set_count / batch_size);
     vector<Tensor> test_label_batches(test_set_count / batch_size);
     for (size_t i = 0; i < test_set_count / batch_size; i++) {
-        Tensor test_image_batch = Tensor::empty({batch_size, 784});
+        Tensor test_image_batch = Tensor::empty({batch_size, 1, 28, 28});
         for (size_t k = 0; k < batch_size * 784; k++) {
             test_image_batch.data.get()[k] = test_images.data.get()[test_images_pos + k];
         }
