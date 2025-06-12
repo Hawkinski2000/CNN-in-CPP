@@ -140,7 +140,7 @@ class Tensor {
         // ---------------------------------------------------------------------------
 
         // Function to compute a tensor's strides from its dimensions
-        vector<size_t> compute_strides(const vector<size_t>& dimensions);
+        static vector<size_t> compute_strides(const vector<size_t>& dimensions);
 
         // Function to pad a shape or strides vector with 1's or 0's for broadcasting
         vector<size_t> pad_vector(const vector<size_t>& original, size_t num_dims, size_t pad_with);
@@ -289,6 +289,7 @@ class Tensor {
         friend class LogSoftmaxBackward;
         friend class NLLLossBackward;
         friend class Conv2dBackward;
+        friend class MaxPool2dBackward;
 
         // ---------------------------------------------------------------------------
 

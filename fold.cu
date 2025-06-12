@@ -13,7 +13,9 @@ __global__ void fold_kernel(const float* input,
                             int stride,
                             int padding,
                             int dilation,
-                            int L) {
+                            int L,
+                            int conv_out_H,
+                            int conv_out_W) {
     int n = blockIdx.x; // Batch index
     int l = blockIdx.y; // Output column
     int patch_idx = threadIdx.x; // Index within each patch vector
@@ -23,8 +25,8 @@ __global__ void fold_kernel(const float* input,
     }
 
     // The top-left corner of this patch
-    int out_i = l / out_W;
-    int out_j = l % out_W;
+    int out_i = l / conv_out_H;
+    int out_j = l % conv_out_W;
 
     int c = patch_idx / (kH * kW); // Input channel index
     int kh = (patch_idx / kW) % kH; // Kernel height position
@@ -56,6 +58,9 @@ Tensor fold_cuda(Tensor& input, initializer_list<size_t> output_size, initialize
     size_t out_H = *output_size.begin(); // Output height
     size_t out_W = *(output_size.begin() + 1); // Output width
 
+    size_t conv_out_H = (out_H + 2 * padding - dilation * (kH - 1) - 1) / stride + 1;
+    size_t conv_out_W = (out_W + 2 * padding - dilation * (kW - 1) - 1) / stride + 1;
+
     size_t N = input.dimensions[0]; // Batch size
 
     size_t C = input.dimensions[1] / (kH * kW); // Channels
@@ -86,7 +91,9 @@ Tensor fold_cuda(Tensor& input, initializer_list<size_t> output_size, initialize
                                        stride,
                                        padding,
                                        dilation,
-                                       L);
+                                       L,
+                                       conv_out_H,
+                                       conv_out_W);
 
     cudaDeviceSynchronize();
 

@@ -338,19 +338,20 @@ void Conv2dBackward::backward() {
     }
 
     dLdc = dLdc.view({N, -1, out_channels});
-    Tensor dLdw = inp_unf->matmul(dLdc, false, false, false);
+    // Tensor dLdw = inp_unf->matmul(dLdc, false, false, false);
+    Tensor dLdw = dLdc.matmul(*inp_unf, true, true, false);
     if (dLdw.dimensions.size() > 2) {
         dLdw = dLdw.sum(0);
     }
     dLdw = dLdw.view({out_channels, in_channels, static_cast<int>(kH), static_cast<int>(kW)});
 
     Tensor w = weight->view({out_channels, -1});
-    Tensor dLdx_unf = dLdc.matmul(w, false, false, false);
+    // Tensor dLdx_unf = dLdc.matmul(w, false, false, false);
+    Tensor dLdx_unf = w.matmul(dLdc, true, true, false);
     if (dLdx_unf.dimensions.size() == 2) {
         dLdx_unf.dimensions = {1, dLdx_unf.dimensions[0], dLdx_unf.dimensions[1]};
         dLdx_unf.strides = Tensor::compute_strides(dLdx_unf.dimensions);
     }
-    dLdx_unf = dLdx_unf.transpose(1, 2);
     Tensor dLdx = fold_cuda(dLdx_unf, {input->dimensions[2], input->dimensions[3]}, {kH, kW}, dilation, padding, stride);
 
     float max_weight = -INFINITY;

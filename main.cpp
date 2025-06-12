@@ -84,21 +84,21 @@ int main() {
     // ---- Create an CNN Model for MNIST ----
 
     class Net : public Module {
-        Conv2d conv1 = Conv2d(1, 16, {3}, 1, 1);
-        Conv2d conv2 = Conv2d(16, 32, {3}, 1, 1);
-        Conv2d conv3 = Conv2d(32, 64, {3}, 1, 1);
-        Linear fc1 = Linear(3136, 128);
-        Linear fc2 = Linear(128, 10);
+        Conv2d conv1 = Conv2d(1, 8, {5});
+        Conv2d conv2 = Conv2d(8, 16, {5});
+        Linear fc1 = Linear(256, 120);
+        Linear fc2 = Linear(120, 84);
+        Linear fc3 = Linear(84, 10);
 
         Tensor forward(Tensor& x) override {
             x = relu(conv1(x));
+            x = maxpool2d_cuda(x, {2});
             x = relu(conv2(x));
             x = maxpool2d_cuda(x, {2});
-            x = relu(conv3(x));
-            x = maxpool2d_cuda(x, {2});
-            x = x.view({-1, 3136});
+            x = x.view({-1, 256});
             x = relu(fc1(x));
-            x = fc2(x);
+            x = relu(fc2(x));
+            x = fc3(x);
             return x;
         }
     };

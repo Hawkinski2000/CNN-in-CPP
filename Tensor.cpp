@@ -190,7 +190,7 @@ Tensor Tensor::rand(initializer_list<size_t> dims, size_t in_features) {
     if (in_features == 0) {
         in_features = tensor.dimensions[0];
     }
-    float limit = sqrt(6.0f / in_features);
+    float limit = sqrt(1.0f / in_features);
     random_device rd;
     mt19937 gen(rd()); // Mersenne Twister RNG
     uniform_real_distribution<float> dist(-limit, limit);

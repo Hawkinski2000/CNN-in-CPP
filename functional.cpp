@@ -172,7 +172,7 @@ Tensor fold(Tensor& input, initializer_list<size_t> output_size, initializer_lis
                     for (size_t kw = 0; kw < kW; kw++) { // Kernel width position
                         size_t out_h = out_i * stride - padding + kh * dilation; // output height position
                         size_t out_w = out_j * stride - padding + kw * dilation; // output width position
-
+                        
                         if (out_h < out_H && out_w < out_W) {
                             size_t patch_idx = c * kH * kW + kh * kW + kw; // Index within each patch vector
                             float value = input[n][patch_idx][l];

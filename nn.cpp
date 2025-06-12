@@ -43,7 +43,7 @@ Linear::Linear(size_t in_features, size_t out_features, bool use_bias) {
     weight.requires_grad = true;
     this->use_bias = use_bias;
     if (use_bias) {
-        bias = Tensor::rand({out_features}, in_features);
+        bias = Tensor::zeros({out_features});
         bias.requires_grad = true;
     }
     Module::modules.push_back(this);
@@ -89,11 +89,11 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, initializer_list<size_t>
     this->stride = stride;
     this->padding = padding;
     this->dilation = dilation; 
-    weight = Tensor::rand({out_channels, in_channels, kH, kW});
+    weight = Tensor::rand({out_channels, in_channels, kH, kW}, in_channels * kH * kW);
     weight.requires_grad = true;
     this->use_bias = use_bias;
     if (use_bias) {
-        bias = Tensor::rand({1, out_channels, 1, 1});
+        bias = Tensor::zeros({1, out_channels, 1, 1});
         bias.requires_grad = true;
     }
     Module::modules.push_back(this);
@@ -103,9 +103,7 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, initializer_list<size_t>
 Tensor Conv2d::forward(Tensor& input) {
     Tensor inp_unf = unfold_cuda(input, {kH, kW}, dilation, padding, stride);
     Tensor w = weight.view({static_cast<int>(weight.shape()[0]), -1});
-
     Tensor out_unf = inp_unf.matmul(w, true, true, false);
-    
     int N = input.shape()[0]; // Batch size
     int C = out_channels;
     size_t in_H = input.shape()[2]; // input height
@@ -113,7 +111,6 @@ Tensor Conv2d::forward(Tensor& input) {
     int out_H = ((in_H + 2 * padding - dilation * (kH - 1) - 1) / stride) + 1; // output height
     int out_W = ((in_W + 2 * padding - dilation * (kW - 1) - 1) / stride) + 1; // output width
     Tensor result = out_unf.view({N, C, out_H, out_W});
-
     if (input.requires_grad) {
         result.node = make_shared<Conv2dBackward>(make_shared<Tensor>(input),
                                                   make_shared<Tensor>(weight),
@@ -124,11 +121,9 @@ Tensor Conv2d::forward(Tensor& input) {
                                                   dilation);
         result.node->tensor = &result;
     }
-
     if (use_bias) {
         result = result + bias;
     }
-
     return result;
 }
 
