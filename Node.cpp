@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cmath>
+#include <chrono>
 #include "Node.h"
 #include "Tensor.h"
 using namespace std;
@@ -224,12 +225,9 @@ ReLUBackward::ReLUBackward(shared_ptr<Tensor> input) : input(input) {
 
 // Function to propagate gradients backward to child nodes
 void ReLUBackward::backward() {
-    Tensor dLdy = *tensor;
-    copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdy.data.get());
-
     for (size_t i = 0; i < input->total_elements; i++) {
         if (input->data.get()[i] > 0) {
-            input->grad.get()[i] += dLdy.data.get()[i];
+            input->grad.get()[i] += tensor->grad.get()[i];
         }
     }
 }
@@ -338,35 +336,30 @@ void Conv2dBackward::backward() {
     }
 
     dLdc = dLdc.view({N, -1, out_channels});
-    // Tensor dLdw = inp_unf->matmul(dLdc, false, false, false);
+
     Tensor dLdw = dLdc.matmul(*inp_unf, true, true, false);
+
     if (dLdw.dimensions.size() > 2) {
         dLdw = dLdw.sum(0);
     }
     dLdw = dLdw.view({out_channels, in_channels, static_cast<int>(kH), static_cast<int>(kW)});
 
     Tensor w = weight->view({out_channels, -1});
-    // Tensor dLdx_unf = dLdc.matmul(w, false, false, false);
+
     Tensor dLdx_unf = w.matmul(dLdc, true, true, false);
+
     if (dLdx_unf.dimensions.size() == 2) {
         dLdx_unf.dimensions = {1, dLdx_unf.dimensions[0], dLdx_unf.dimensions[1]};
         dLdx_unf.strides = Tensor::compute_strides(dLdx_unf.dimensions);
     }
+
     Tensor dLdx = fold_cuda(dLdx_unf, {input->dimensions[2], input->dimensions[3]}, {kH, kW}, dilation, padding, stride);
 
-    float max_weight = -INFINITY;
-    float min_weight = INFINITY;
     for (size_t i = 0; i < weight->total_elements; i++) {
         weight->grad.get()[i] += dLdw.data.get()[i];
-        max_weight = max(max_weight, dLdw.data.get()[i]);
-        min_weight = min(min_weight, dLdw.data.get()[i]);
     }
-    float max_input = -INFINITY;
-    float min_input = INFINITY;
     for (size_t i = 0; i < input->total_elements; i++) {
         input->grad.get()[i] += dLdx.data.get()[i];
-        max_input = max(max_input, dLdx.data.get()[i]);
-        min_input = min(min_input, dLdx.data.get()[i]);
     }
 }
 

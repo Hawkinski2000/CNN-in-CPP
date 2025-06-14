@@ -80,6 +80,8 @@ Tensor fold_cuda(Tensor& input, initializer_list<size_t> output_size, initialize
     // Transfer the input tensor's data from CPU to GPU
     cudaMemcpy(input.device_data, input.data.get(), sizeof(float) * input.total_elements, cudaMemcpyHostToDevice);
 
+    cudaMemset(result.device_data, 0, sizeof(float) * result.total_elements);
+
     fold_kernel<<<gridDim, blockDim>>>(input.device_data,
                                        result.device_data,
                                        N,

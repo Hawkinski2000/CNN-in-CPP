@@ -11,11 +11,16 @@ This function uses code from Simon Boehm's repository, "SGEMM_CUDA":
 ==============================================================================
 */
 
+
 Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool create_node) {
     cudaSetDevice(0);
-    
-    cublasHandle_t handle;
-    cublasCreate(&handle);
+
+    static cublasHandle_t handle;
+    static bool initialized = false;
+    if (!initialized) {
+        cublasCreate(&handle);
+        initialized = true;
+    }
 
     cublasOperation_t transa;
     cublasOperation_t transb;
@@ -207,14 +212,13 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
                                batch_count,
                                CUBLAS_COMPUTE_32F,
                                CUBLAS_GEMM_DEFAULT_TENSOR_OP);
-
+                             
     cudaDeviceSynchronize();
     cudaMemcpy(C, dC, C_mem_size, cudaMemcpyDeviceToHost);
 
     cudaFree(dA);
     cudaFree(dB);
     cudaFree(dC);
-    cublasDestroy(handle);
 
     Tensor result;
     if (batch_count > 1) {
@@ -237,5 +241,6 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
             result.node->tensor = &result;
         }
     }
+
     return result;
 }

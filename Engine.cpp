@@ -35,8 +35,7 @@ void Engine::run_backward(shared_ptr<Node> root) {
 void Engine::clear_graph(shared_ptr<Node> root) {
     unordered_set<Node*> visited;
     vector<Node*> topo;
-    
-    trace_graph(root, visited, topo);
+    trace_graph(root, visited, topo);    
     for (size_t i = 0; i < topo.size(); i++) {
         topo[i]->children.clear();
     }

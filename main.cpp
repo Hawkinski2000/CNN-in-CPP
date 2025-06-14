@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <chrono>
 #include "Tensor.h"
 #include "Engine.h"
 #include "nn.h"
@@ -149,12 +150,15 @@ int main() {
     float avg_accuracy = 0;
     float total = batch_size;
     float correct;
+    auto average_duration = 0;
+    float total_time = 0;
 
     SGD optimizer = SGD(net.parameters(), lr);
 
     size_t steps = epochs * (train_set_count / batch_size);
     cout << "======== Training... ========" << endl;
     for (size_t step = 0; step < steps; step++) {
+        auto start = chrono::high_resolution_clock::now();
         inputs = train_image_batches[step % (train_set_count / batch_size)];
         labels = train_label_batches[step % (train_set_count / batch_size)];
 
@@ -162,7 +166,9 @@ int main() {
 
         outputs = net(inputs);
         loss = cross_entropy(outputs, labels);
+
         loss.backward();
+
         optimizer.step();
 
         running_loss += loss[0];
@@ -175,12 +181,25 @@ int main() {
         }
         accuracy = (correct / total) * 100;
         avg_accuracy += accuracy / 100;
+        auto stop = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+        total_time += duration.count();
+        average_duration += duration.count();
+        double avg_step_duration_ms = average_duration / 100.0;
+        double steps_per_second = 1000.0 / avg_step_duration_ms;
         if (step % 100 == 99) {
-            cout << "Step: " << step + 1 << "/" << steps << fixed << setprecision(4) << " | Loss: " << running_loss / 100 << fixed << setprecision(2) << " | Accuracy: " << avg_accuracy << "%" << endl;
+            cout << "Step: " << step + 1 << "/" << steps
+            << fixed << setprecision(4) << " | Loss: " << running_loss / 100
+            << fixed << setprecision(2) << " | Accuracy: " << avg_accuracy << "%"
+            << " | Avg Step Duration: " << avg_step_duration_ms << " ms"
+            << " | Steps/sec: " << fixed << setprecision(2) << steps_per_second << endl;
             running_loss = 0;
             avg_accuracy = 0;
+            average_duration = 0;
         }
+
     }
+    cout << "Overall average step duration: " << total_time / steps << " ms" << endl;
 
     // ---------------------------------------------------------------------------
     // ---- Loading Test Data ----
