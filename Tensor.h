@@ -47,7 +47,7 @@ class Tensor {
         Tensor(Tensor&& other);
 
         // Destructor for the Tensor class
-        ~Tensor();
+        // ~Tensor();
 
         // ---------------------------------------------------------------------------
 
@@ -64,7 +64,7 @@ class Tensor {
         static Tensor zeros(vector<size_t> dims);
 
         // Function to create a tensor of ones from a specified shape
-        static Tensor ones(initializer_list<size_t> dims);
+        static Tensor ones(initializer_list<size_t> dims, bool use_cuda=false);
 
         // Function to create tensor of ones from a shape specified as a vector
         static Tensor ones(vector<size_t> dims);
@@ -136,6 +136,17 @@ class Tensor {
         // This function uses code from Simon Boehm's repository, "SGEMM_CUDA":
         // https://github.com/siboehm/SGEMM_CUDA/tree/master
         Tensor matmul(Tensor& other, bool transpose_a=false, bool transpose_b=false, bool create_node=true);
+        static float memcpy_C_total_time;
+        static float gemm_total_time;
+        static float A_malloc_total_time;
+        static float B_malloc_total_time;
+        static float C_malloc_total_time;
+        static float A_memcpy_total_time;
+        static float B_memcpy_total_time;
+        static float C_memset_total_time;
+        static float sync_total_time;
+        static float free_total_time;
+        static float result_total_time;
 
         // ---------------------------------------------------------------------------
 
@@ -162,56 +173,104 @@ class Tensor {
         // Overload the + operator for element-wise addition between tensors
         Tensor operator+(Tensor& other);
 
+        // Function for element-wise addition between tensors that runs on the GPU
+        Tensor cuda_add(Tensor& other);
+
         // Overload the + operator for element-wise addition between tensors and scalars
         Tensor operator+(float value);
+
+        // Function for element-wise addition between tensors and scalars that runs on the GPU
+        Tensor cuda_add_scalar(float value);
 
         // Overload the += operator for element-wise addition and assignment between tensors
         Tensor& operator+=(const Tensor& other);
 
+        // Function for element-wise addition and assignment between tensors that runs on the GPU
+        Tensor& cuda_add_(const Tensor& other);
+
         // Overload the += operator for element-wise addition and assignment between tensors and scalars
         Tensor& operator+=(float value);
+
+        // Function for element-wise addition and assignment between tensors and scalars that runs on the GPU
+        Tensor& cuda_add_scalar_(float value);
 
         // ---------------------------------------------------------------------------
 
         // Overload the - operator for element-wise subtraction between tensors
         Tensor operator-(Tensor& other);
 
+        // Function for element-wise subtraction between tensors that runs on the GPU
+        Tensor cuda_sub(Tensor& other);
+
         // Overload the - operator for element-wise subtraction between tensors and scalars
         Tensor operator-(float value);
+
+        // Function for element-wise subtraction between tensors and scalars that runs on the GPU
+        Tensor cuda_sub_scalar(float value);
 
         // Overload the -= operator for element-wise subtraction and assignment between tensors
         Tensor& operator-=(const Tensor& other);
 
+        // Function for element-wise subtraction and assignment between tensors that runs on the GPU
+        Tensor& cuda_sub_(const Tensor& other);
+
         // Overload the -= operator for element-wise subtraction and assignment between tensors and scalars
         Tensor& operator-=(float value);
+
+        // Function for element-wise subtraction and assignment between tensors and scalars that runs on the GPU
+        Tensor& cuda_sub_scalar_(float value);
 
         // ---------------------------------------------------------------------------
 
         // Overload the * operator for element-wise multiplication between tensors
         Tensor operator*(Tensor& other);
 
+        // Function for element-wise multiplication between tensors that runs on the GPU
+        Tensor cuda_mul(Tensor& other);
+
         // Overload the * operator for element-wise multiplication between tensors and scalars
         Tensor operator*(float value);
+
+        // Function for element-wise multiplication between tensors and scalars that runs on the GPU
+        Tensor cuda_mul_scalar(float value);
 
         // Overload the *= operator for element-wise multiplication and assignment between tensors
         Tensor& operator*=(const Tensor& other);
 
+        // Function for element-wise multiplication and assignment between tensors that runs on the GPU
+        Tensor& cuda_mul_(const Tensor& other);
+
         // Overload the *= operator for element-wise multiplication and assignment between tensors and scalars
         Tensor& operator*=(float value);
+
+        // Function for element-wise multiplication and assignment between tensors and scalars that runs on the GPU
+        Tensor& cuda_mul_scalar_(float value);
 
         // ---------------------------------------------------------------------------
 
         // Overload the / operator for element-wise division between tensors
         Tensor operator/(Tensor& other);
 
+        // Function for element-wise division between tensors that runs on the GPU
+        Tensor cuda_div(Tensor& other);
+
         // Overload the / operator for element-wise division between tensors and scalars
         Tensor operator/(float value);
+
+        // Function for element-wise division between tensors and scalars that runs on the GPU
+        Tensor cuda_div_scalar(float value);
 
         // Overload the /= operator for element-wise division and assignment between tensors
         Tensor& operator/=(const Tensor& other);
 
+        // Function for element-wise division and assignment between tensors that runs on the GPU
+        Tensor& cuda_div_(const Tensor& other);
+
         // Overload the /= operator for element-wise division and assignment between tensors and scalars
         Tensor& operator/=(float value);
+
+        // Function for element-wise division and assignment between tensors and scalars that runs on the GPU
+        Tensor& cuda_div_scalar_(float value);
 
         // ---------------------------------------------------------------------------
 
@@ -273,6 +332,7 @@ class Tensor {
         // ---------------------------------------------------------------------------
 
         shared_ptr<float> data;
+        string device = "cpu";
         float* device_data = nullptr;
         bool requires_grad = true;
         shared_ptr<float> grad = nullptr;
@@ -297,7 +357,7 @@ class Tensor {
         Tensor(initializer_list<size_t> dims, bool use_cuda=false);
 
         // Constructor for Tensor class used by creation methods that specify a shape as a vector
-        Tensor(const vector<size_t>& dims);
+        Tensor(const vector<size_t>& dims, bool use_cuda=false);
 
         // Constructor for Tensor class used by tensor() where values are specified
         Tensor(initializer_list<float> values);

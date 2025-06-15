@@ -3,6 +3,7 @@
 #include <cuda_runtime.h>
 #include "Tensor.h"
 #include "Engine.h"
+#include "cuda_utils.cuh"
 using namespace std;
 
 
@@ -54,11 +55,20 @@ Tensor::Tensor(initializer_list<size_t> dims, bool use_cuda) {
         total_elements *= dim;
     }
 
-    data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+    // data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+    
+    // // Allocate GPU memory for the tensor if specified
+    // if (use_cuda) {
+    //     cudaMalloc(&device_data, total_elements * sizeof(float));
+    // }
 
-    // Allocate GPU memory for the tensor if specified
     if (use_cuda) {
+        float* device_data;
         cudaMalloc(&device_data, total_elements * sizeof(float));
+        data = shared_ptr<float>(device_data, [](float* p) { cudaFree(p); });
+        device = "cuda";
+    } else {
+        data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
     }
 
     // Calculate strides from tensor dimensions
@@ -69,7 +79,7 @@ Tensor::Tensor(initializer_list<size_t> dims, bool use_cuda) {
 }
 
 // Constructor for Tensor class used by creation methods that specify a shape as a vector
-Tensor::Tensor(const vector<size_t>& dims) {
+Tensor::Tensor(const vector<size_t>& dims, bool use_cuda) {
     dimensions.resize(dims.size());
     size_t i = 0;
     for (size_t dim : dims) {
@@ -83,7 +93,16 @@ Tensor::Tensor(const vector<size_t>& dims) {
         total_elements *= dim;
     }
 
-    data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+    // data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+
+    if (use_cuda) {
+        float* device_data;
+        cudaMalloc(&device_data, total_elements * sizeof(float));
+        data = shared_ptr<float>(device_data, [](float* p) { cudaFree(p); });
+        device = "cuda";
+    } else {
+        data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+    }
 
     // Calculate strides from tensor dimensions
     strides = compute_strides(dimensions);
@@ -137,12 +156,12 @@ Tensor::Tensor(const vector<float>& values) {
 }
 
 // Destructor for the Tensor class
-Tensor::~Tensor() {
-    if (device_data) {
-        cudaFree(device_data);
-        device_data = nullptr;
-    }
-}
+// Tensor::~Tensor() {
+//     if (device_data) {
+//         cudaFree(device_data);
+//         device_data = nullptr;
+//     }
+// }
 
 // ---------------------------------------------------------------------------
 
@@ -171,9 +190,14 @@ Tensor Tensor::zeros(vector<size_t> dims) {
 }
 
 // Function to create a tensor of ones from a specified shape
-Tensor Tensor::ones(initializer_list<size_t> dims) {
-    Tensor tensor(dims);
-    fill(tensor.data.get(), tensor.data.get() + tensor.total_elements, 1);
+Tensor Tensor::ones(initializer_list<size_t> dims, bool use_cuda) {
+    Tensor tensor(dims, use_cuda);
+    if (use_cuda) {
+        cuda_fill(tensor.data.get(), tensor.total_elements, 1);
+    }
+    else {
+        fill(tensor.data.get(), tensor.data.get() + tensor.total_elements, 1);
+    }
     return tensor;
 }
 
@@ -671,9 +695,10 @@ bool Tensor::next_index(vector<size_t>& indices, const vector<size_t>& result_di
     size_t num_dims = result_dims.size();
     for (size_t i = num_dims; i-- > 0;) {
         indices[i]++;
-    if (indices[i] < result_dims[i]) {
+        if (indices[i] < result_dims[i]) {
             return true;
-        } else {
+        }
+        else {
             indices[i] = 0;
         }
     }
@@ -684,6 +709,10 @@ bool Tensor::next_index(vector<size_t>& indices, const vector<size_t>& result_di
 
 // Overload the + operator for element-wise addition between tensors
 Tensor Tensor::operator+(Tensor& other) {
+    if (this->device == "cuda" && other.device == "cuda") {
+        return cuda_add(other);
+    }
+
     Tensor result;
 
     // Need to perform broadcasting since the tensors have different shapes
@@ -724,6 +753,10 @@ Tensor Tensor::operator+(Tensor& other) {
 
 // Overload the + operator for element-wise addition between tensors and scalars
 Tensor Tensor::operator+(float value) {
+    if (this->device == "cuda") {
+        return cuda_add_scalar(value);
+    }
+
     Tensor result = Tensor(dimensions);
     for (size_t i = 0; i < total_elements; i++) {
         result.data.get()[i] = data.get()[i] + value;
@@ -733,6 +766,10 @@ Tensor Tensor::operator+(float value) {
 
 // Overload the += operator for element-wise addition and assignment between tensors
 Tensor& Tensor::operator+=(const Tensor& other) {
+    if (this->device == "cuda" && other.device == "cuda") {
+        return cuda_add_(other);
+    }
+
     for (size_t i = 0; i < other.total_elements; i++) {
         data.get()[i] += other.data.get()[i];
     }
@@ -741,6 +778,10 @@ Tensor& Tensor::operator+=(const Tensor& other) {
 
 // Overload the += operator for element-wise addition and assignment between tensors and scalars
 Tensor& Tensor::operator+=(float value) {
+    if (this->device == "cuda") {
+        return cuda_add_scalar_(value);
+    }
+
     for (size_t i = 0; i < total_elements; i++) {
         data.get()[i] += value;
     }
@@ -751,6 +792,10 @@ Tensor& Tensor::operator+=(float value) {
 
 // Overload the - operator for element-wise subtraction between tensors
 Tensor Tensor::operator-(Tensor& other) {
+    if (this->device == "cuda" && other.device == "cuda") {
+        return cuda_sub(other);
+    }
+
     Tensor result;
 
     // Need to perform broadcasting since the tensors have different shapes
@@ -792,6 +837,10 @@ Tensor Tensor::operator-(Tensor& other) {
 
 // Overload the - operator for element-wise subtraction between tensors and scalars
 Tensor Tensor::operator-(float value) {
+    if (this->device == "cuda") {
+        return cuda_sub_scalar(value);
+    }
+
     Tensor result = Tensor(dimensions);
     for (size_t i = 0; i < total_elements; i++) {
         result.data.get()[i] = data.get()[i] - value;
@@ -801,6 +850,10 @@ Tensor Tensor::operator-(float value) {
 
 // Overload the -= operator for element-wise subtraction and assignment between tensors
 Tensor& Tensor::operator-=(const Tensor& other) {
+    if (this->device == "cuda" && other.device == "cuda") {
+        return cuda_sub_(other);
+    }
+
     for (size_t i = 0; i < other.total_elements; i++) {
         data.get()[i] -= other.data.get()[i];
     }
@@ -809,6 +862,10 @@ Tensor& Tensor::operator-=(const Tensor& other) {
 
 // Overload the -= operator for element-wise subtraction and assignment between tensors and scalars
 Tensor& Tensor::operator-=(float value) {
+    if (this->device == "cuda") {
+        return cuda_sub_scalar_(value);
+    }
+
     for (size_t i = 0; i < total_elements; i++) {
         data.get()[i] -= value;
     }
@@ -819,6 +876,10 @@ Tensor& Tensor::operator-=(float value) {
 
 // Overload the * operator for element-wise multiplication between tensors
 Tensor Tensor::operator*(Tensor& other) {
+    if (this->device == "cuda" && other.device == "cuda") {
+        return cuda_mul(other);
+    }
+
     Tensor result;
 
     // Need to perform broadcasting since the tensors have different shapes
@@ -860,6 +921,10 @@ Tensor Tensor::operator*(Tensor& other) {
 
 // Overload the * operator for element-wise multiplication between tensors and scalars
 Tensor Tensor::operator*(float value) {
+    if (this->device == "cuda") {
+        return cuda_mul_scalar(value);
+    }
+
     Tensor result = Tensor(dimensions);
     for (size_t i = 0; i < total_elements; i++) {
         result.data.get()[i] = data.get()[i] * value;
@@ -869,6 +934,10 @@ Tensor Tensor::operator*(float value) {
 
 // Overload the *= operator for element-wise multiplication and assignment between tensors
 Tensor& Tensor::operator*=(const Tensor& other) {
+    if (this->device == "cuda" && other.device == "cuda") {
+        return cuda_mul_(other);
+    }
+
     for (size_t i = 0; i < other.total_elements; i++) {
         data.get()[i] *= other.data.get()[i];
     }
@@ -877,6 +946,10 @@ Tensor& Tensor::operator*=(const Tensor& other) {
 
 // Overload the *= operator for element-wise multiplication and assignment between tensors and scalars
 Tensor& Tensor::operator*=(float value) {
+    if (this->device == "cuda") {
+        return cuda_mul_scalar_(value);
+    }
+
     for (size_t i = 0; i < total_elements; i++) {
         data.get()[i] *= value;
     }
@@ -887,6 +960,10 @@ Tensor& Tensor::operator*=(float value) {
 
 // Overload the / operator for element-wise division between tensors
 Tensor Tensor::operator/(Tensor& other) {
+    if (this->device == "cuda" && other.device == "cuda") {
+        return cuda_div(other);
+    }
+
     Tensor result;
 
     // Need to perform broadcasting since the tensors have different shapes
@@ -928,6 +1005,10 @@ Tensor Tensor::operator/(Tensor& other) {
 
 // Overload the / operator for element-wise division between tensors and scalars
 Tensor Tensor::operator/(float value) {
+    if (this->device == "cuda") {
+        return cuda_div_scalar(value);
+    }
+
     Tensor result = Tensor(dimensions);
     for (size_t i = 0; i < total_elements; i++) {
         result.data.get()[i] = data.get()[i] / value;
@@ -937,6 +1018,10 @@ Tensor Tensor::operator/(float value) {
 
 // Overload the /= operator for element-wise division and assignment between tensors
 Tensor& Tensor::operator/=(const Tensor& other) {
+    if (this->device == "cuda" && other.device == "cuda") {
+        return cuda_div_(other);
+    }
+
     for (size_t i = 0; i < other.total_elements; i++) {
         data.get()[i] /= other.data.get()[i];
     }
@@ -945,6 +1030,10 @@ Tensor& Tensor::operator/=(const Tensor& other) {
 
 // Overload the /= operator for element-wise division and assignment between tensors and scalars
 Tensor& Tensor::operator/=(float value) {
+    if (this->device == "cuda") {
+        return cuda_div_scalar_(value);
+    }
+
     for (size_t i = 0; i < total_elements; i++) {
         data.get()[i] /= value;
     }
@@ -955,10 +1044,13 @@ Tensor& Tensor::operator/=(float value) {
 
 // Overload the << operator for printing the contents of a tensor
 ostream& operator<<(ostream& os, const Tensor& tensor) {
+    Tensor result(tensor.dimensions);
+    cudaMemcpy(result.data.get(), tensor.data.get(), tensor.total_elements * sizeof(float), cudaMemcpyDeviceToHost);
+
     os << '(';
-    for (size_t i = 0; i < tensor.total_elements; i++) {
-        os << tensor.data.get()[i];
-        if (i < tensor.total_elements - 1) {
+    for (size_t i = 0; i < result.total_elements; i++) {
+        os << result.data.get()[i];
+        if (i < result.total_elements - 1) {
             os << ", ";
         }
     }
