@@ -2,6 +2,7 @@
 #include <cublas_v2.h>
 #include "Tensor.h"
 #include "Node.h"
+#include "time.h"
 
 
 /*
@@ -11,8 +12,22 @@ This function uses code from Simon Boehm's repository, "SGEMM_CUDA":
 ==============================================================================
 */
 
+size_t Time::matmuls = 0;
+float Tensor::memcpy_C_total_time = 0;
+float Tensor::gemm_total_time = 0;
+float Tensor::A_malloc_total_time = 0;
+float Tensor::B_malloc_total_time = 0;
+float Tensor::C_malloc_total_time = 0;
+float Tensor::A_memcpy_total_time = 0;
+float Tensor::B_memcpy_total_time = 0;
+float Tensor::C_memset_total_time = 0;
+float Tensor::sync_total_time = 0;
+float Tensor::free_total_time = 0;
+float Tensor::result_total_time = 0;
 
 Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool create_node) {
+    Time::matmuls++;
+
     cudaSetDevice(0);
 
     static cublasHandle_t handle;
@@ -140,7 +155,8 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
         result_batch_dims = A_batch_dims;
     }
 
-    float *dA, *dB, *dC;
+    // float *dA, *dB, *dC;
+    // float *dC;
 
     float* A;
     float* B;
@@ -179,16 +195,75 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
         B_mem_size *= batch_count;
     }
 
-    cudaMalloc((void **)&dA, A_mem_size);
-    cudaMalloc((void **)&dB, B_mem_size);
-    cudaMalloc((void **)&dC, C_mem_size);
+    // ----------------------------------------------------------------------------------------------- 
+    auto A_malloc_start = chrono::steady_clock::now();
+    // cudaMalloc((void **)&dA, A_mem_size);
+    auto A_malloc_stop = chrono::steady_clock::now();
+    auto A_malloc_duration = chrono::duration_cast<chrono::microseconds>(A_malloc_stop - A_malloc_start);
+    A_malloc_total_time += A_malloc_duration.count();
+    if (Time::global_step == 2810) {
+        cout << "Average A_malloc duration: " << A_malloc_total_time / Time::matmuls << " μs" << endl;
+    }
 
-    cudaMemcpy(dA, A, A_mem_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(dB, B, B_mem_size, cudaMemcpyHostToDevice);
-    cudaMemset(dC, 0, C_mem_size);
+    // ----------------------------------------------------------------------------------------------- 
+
+    // ----------------------------------------------------------------------------------------------- 
+    auto B_malloc_start = chrono::steady_clock::now();
+    // cudaMalloc((void **)&dB, B_mem_size);
+    auto B_malloc_stop = chrono::steady_clock::now();
+    auto B_malloc_duration = chrono::duration_cast<chrono::microseconds>(B_malloc_stop - B_malloc_start);
+    B_malloc_total_time += B_malloc_duration.count();
+    if (Time::global_step == 2810) {
+        cout << "Average B_malloc duration: " << B_malloc_total_time / Time::matmuls << " μs" << endl;
+    }
+    // ----------------------------------------------------------------------------------------------- 
+    auto C_malloc_start = chrono::steady_clock::now();
+    cudaMalloc((void **)&C, C_mem_size);
+    auto C_malloc_stop = chrono::steady_clock::now();
+    auto C_malloc_duration = chrono::duration_cast<chrono::microseconds>(C_malloc_stop - C_malloc_start);
+    C_malloc_total_time += C_malloc_duration.count();
+    if (Time::global_step == 2810) {
+        cout << "Average C_malloc duration: " << C_malloc_total_time / Time::matmuls << " μs" << endl;
+    }
+    // ----------------------------------------------------------------------------------------------- 
+
+    // ----------------------------------------------------------------------------------------------- 
+    auto A_memcpy_start = chrono::steady_clock::now();
+    // cudaMemcpy(dA, A, A_mem_size, cudaMemcpyHostToDevice);
+    auto A_memcpy_stop = chrono::steady_clock::now();
+    auto A_memcpy_duration = chrono::duration_cast<chrono::microseconds>(A_memcpy_stop - A_memcpy_start);
+    A_memcpy_total_time += A_memcpy_duration.count();
+    if (Time::global_step == 2810) {
+        cout << "Average A_memcpy duration: " << A_memcpy_total_time / Time::matmuls << " μs" << endl;
+    }
+    // ----------------------------------------------------------------------------------------------- 
+
+    // ----------------------------------------------------------------------------------------------- 
+    auto B_memcpy_start = chrono::steady_clock::now();
+    // cudaMemcpy(dB, B, B_mem_size, cudaMemcpyHostToDevice);
+    auto B_memcpy_stop = chrono::steady_clock::now();
+    auto B_memcpy_duration = chrono::duration_cast<chrono::microseconds>(B_memcpy_stop - B_memcpy_start);
+    B_memcpy_total_time += B_memcpy_duration.count();
+    if (Time::global_step == 2810) {
+        cout << "Average B_memcpy duration: " << B_memcpy_total_time / Time::matmuls << " μs" << endl;
+    }
+    // ----------------------------------------------------------------------------------------------- 
+
+    // ----------------------------------------------------------------------------------------------- 
+    auto C_memset_start = chrono::steady_clock::now();
+    cudaMemset(C, 0, C_mem_size);
+    auto C_memset_stop = chrono::steady_clock::now();
+    auto C_memset_duration = chrono::duration_cast<chrono::microseconds>(C_memset_stop - C_memset_start);
+    C_memset_total_time += C_memset_duration.count();
+    if (Time::global_step == 2810) {
+        cout << "Average C_memset duration: " << C_memset_total_time / Time::matmuls << " μs" << endl;
+    }
+    // ----------------------------------------------------------------------------------------------- 
 
     float alpha = 1, beta = 0; // GEMM input parameters, C=α*AB+β*C
 
+    // ----------------------------------------------------------------------------------------------- 
+    auto gemm_start = chrono::steady_clock::now();
     cublasGemmStridedBatchedEx(handle,
                                transb,
                                transa,
@@ -196,44 +271,89 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
                                n_cublas,
                                k_cublas,
                                &alpha,
-                               dB,
+                               B,
                                CUDA_R_32F,
                                lda,
                                strideB,
-                               dA,
+                               A,
                                CUDA_R_32F,
                                ldb,
                                strideA,
                                &beta,
-                               dC,
+                               C,
                                CUDA_R_32F,
                                ldc,
                                strideC,
                                batch_count,
                                CUBLAS_COMPUTE_32F,
                                CUBLAS_GEMM_DEFAULT_TENSOR_OP);
-                             
-    cudaDeviceSynchronize();
-    cudaMemcpy(C, dC, C_mem_size, cudaMemcpyDeviceToHost);
+    auto gemm_stop = chrono::steady_clock::now();
+    auto gemm_duration = chrono::duration_cast<chrono::microseconds>(gemm_stop - gemm_start);
+    gemm_total_time += gemm_duration.count();
+    if (Time::global_step == 2810) {
+        cout << "Average gemm duration: " << gemm_total_time / Time::matmuls << " μs" << endl;
+    }
+    // ----------------------------------------------------------------------------------------------- 
+    
+    // ----------------------------------------------------------------------------------------------- 
+    auto memcpy_C_start = chrono::steady_clock::now();
+    // cudaMemcpy(C, dC, C_mem_size, cudaMemcpyDeviceToHost);
+    auto memcpy_C_stop = chrono::steady_clock::now();
+    auto memcpy_C_duration = chrono::duration_cast<chrono::microseconds>(memcpy_C_stop - memcpy_C_start);
+    memcpy_C_total_time += memcpy_C_duration.count();
+    if (Time::global_step == 2810) {
+        cout << "Average memcpy_C duration: " << memcpy_C_total_time / Time::matmuls << " μs" << endl;
+    }
+    // -----------------------------------------------------------------------------------------------
 
-    cudaFree(dA);
-    cudaFree(dB);
-    cudaFree(dC);
+    // -----------------------------------------------------------------------------------------------
+    auto free_start = chrono::steady_clock::now();
+    // cudaFree(dA);
+    // cudaFree(dB);
+    // cudaFree(dC);
+    auto free_stop = chrono::steady_clock::now();
+    auto free_duration = chrono::duration_cast<chrono::microseconds>(free_stop - free_start);
+    free_total_time += free_duration.count();
+    if (Time::global_step == 2810) {
+        cout << "Average free duration: " << free_total_time / Time::matmuls << " μs" << endl;
+    }
+    // -----------------------------------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------------------------------
+    auto result_start = chrono::steady_clock::now();
 
     Tensor result;
+    vector<size_t> result_dims;
     if (batch_count > 1) {
-        vector<size_t> result_dims(result_batch_dims.size() + 2);
+        result_dims.resize(result_batch_dims.size() + 2);
         copy(result_batch_dims.begin(), result_batch_dims.end(), result_dims.begin());
         result_dims[result_batch_dims.size()] = m_result;
         result_dims[result_batch_dims.size() + 1] = n_result;
-        result = Tensor::empty(result_dims);
     }
     else {
-        result = Tensor::empty({m_result, n_result});
+        result_dims = {m_result, n_result};
     }
+    result.dimensions = result_dims;
+    result.strides = compute_strides(result.dimensions);
 
-    result.data = shared_ptr<float>(C, default_delete<float[]>());
     result.total_elements = batch_count * m_result * n_result;
+    result.grad = shared_ptr<float>(new float[result.total_elements], default_delete<float[]>());
+    fill(result.grad.get(), result.grad.get() + result.total_elements, 0);
+
+    auto result_stop = chrono::steady_clock::now();
+    auto result_duration = chrono::duration_cast<chrono::microseconds>(result_stop - result_start);
+    result_total_time += result_duration.count();
+    if (Time::global_step == 2810) {
+        cout << "Average result duration: " << result_total_time / Time::matmuls << " μs" << endl;
+    }
+    // -----------------------------------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------------------------------
+
+    // result.data = shared_ptr<float>(C, default_delete<float[]>());
+    result.data = shared_ptr<float>(C, [](float* p) { cudaFree(p); });
+    
+    // -----------------------------------------------------------------------------------------------
 
     if (create_node) {
         if (requires_grad || other.requires_grad) {
