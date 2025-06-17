@@ -55,7 +55,7 @@ class Tensor {
         static Tensor empty(initializer_list<size_t> dims, bool use_cuda=false);
 
         // Function to create an empty tensor from a shape specified as a vector
-        static Tensor empty(vector<size_t> dims);
+        static Tensor empty(vector<size_t> dims, bool use_cuda=false);
 
         // Function to create a tensor of zeros from a specified shape
         static Tensor zeros(initializer_list<size_t> dims, bool use_cuda=false);
@@ -128,6 +128,9 @@ class Tensor {
 
         // Function to return the maximum value of all elements in a tensor
         Tensor max(optional<size_t> dim = nullopt);
+
+        // Function to return the maximum value of all elements in a tensor that runs on the GPU
+        Tensor cuda_max(optional<size_t> dim = nullopt);
 
         // Function to return the indices of the maximum value of all elements in a tensor
         Tensor argmax(optional<size_t> dim = nullopt);

@@ -2,9 +2,9 @@
 #include "Tensor.h"
 
 
-// Kernel for sum() where a dimension to reduce was not specified, so all dimensions are reduced
-__global__ void sum_all_kernel(const float* __restrict__ data, float* result, size_t size) {
-    extern __shared__ float sdata[]; // array in shared memory
+// Kernel for max() where a dimension to reduce was not specified, so all dimensions are reduced
+__global__ void max_all_kernel(const float* __restrict__ data, float* result, size_t size) {
+    extern __shared__ float sdata[]; // array in shared memory for this block
     int tid = threadIdx.x; // Thread ID
     size_t i = blockIdx.x * blockDim.x + threadIdx.x; // Index of element in data to process
 
@@ -13,39 +13,39 @@ __global__ void sum_all_kernel(const float* __restrict__ data, float* result, si
         val = data[i];
     }
     else {
-        val = 0.0f;
+        val = -INFINITY;
     }
     sdata[tid] = val;
     __syncthreads();
 
-    // Parallel reduction in shared memory. The range in data to sum is
-    // halved each time until the sum of data in the block is accumulated in
-    // sdata[0]. E.g., if data contains [1, 2, 3, 4], after each iteration,
-    // sdata will contain [1+3, 2+4, 3, 4], then [4+6, 6, 3, 4], where
-    // sdata[0] = 10, the sum of [1, 2, 3, 4].  
+    // Parallel reduction in shared memory. The range in data in the block to
+    // find the max in is halved each time until the max of data in the block
+    // is accumulated in sdata[0]. E.g., if data contains [1, 2, 3, 4], after
+    // each iteration, sdata will contain [3, 4, 3, 4], then [4, 4, 3, 4],
+    // where sdata[0] = 4, the max of [1, 2, 3, 4].
     for (size_t s = blockDim.x / 2; s > 0; s >>= 1) {
         if (tid < s) {
-            sdata[tid] += sdata[tid + s];
+            sdata[tid] = fmaxf(sdata[tid], sdata[tid + s]);
         }
         __syncthreads();
     }
 
-    // The sum of data in the block that was accumulated in sdata[0] will be
-    // added to result.
+    // The max of data in the block that was accumulated in sdata[0] will
+    // replace result if it's the new overall max.
     if (tid == 0) {
-        atomicAdd(result, sdata[0]);
+        atomicMax((int*)result, __float_as_int(sdata[0]));
     }
 }
 
-// Kernel for sum() where a dimension to reduce was specified
-__global__ void sum_dim_kernel(const float* __restrict__ input,
+// Kernel for max() where a dimension to reduce was specified
+__global__ void max_dim_kernel(const float* __restrict__ input,
                                float* output,
                                const size_t* in_dims,
                                const size_t* out_strides,
                                size_t dim,
                                size_t ndims,
                                size_t total_elements) {
-    size_t i = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t i = blockIdx.x * blockDim.x + threadIdx.x; // Index of element in data to process
     if (i >= total_elements) {
         return;
     }
@@ -66,14 +66,13 @@ __global__ void sum_dim_kernel(const float* __restrict__ input,
         out_flat_idx += idx[j] * out_strides[j];
     }
 
-    // The sum of data in the block that was accumulated in sdata[0] will be
-    // added to result.
-    atomicAdd(&output[out_flat_idx], input[i]);
+    // The max of data in the block that was accumulated in sdata[0] will
+    // replace result if it's the new overall max.
+    atomicMax((int*)&output[out_flat_idx], __float_as_int(input[i]));
 }
 
-
-// Function to return the sum of all elements in a tensor that runs on the GPU
-Tensor Tensor::cuda_sum(optional<size_t> dim) {
+// Function to return the maximum value of all elements in a tensor that runs on the GPU
+Tensor Tensor::cuda_max(optional<size_t> dim) {
     Tensor result;
 
     // A dimension to reduce was specified
@@ -83,6 +82,8 @@ Tensor Tensor::cuda_sum(optional<size_t> dim) {
         out_dims[d] = 1;
 
         result = Tensor::empty(out_dims, true);
+        float init_val = -INFINITY;
+        cudaMemcpy(result.data.get(), &init_val, sizeof(float) * result.total_elements, cudaMemcpyHostToDevice);
 
         size_t ndims = dimensions.size();
 
@@ -97,7 +98,7 @@ Tensor Tensor::cuda_sum(optional<size_t> dim) {
         int threads = 256;
         int blocks = (total_elements + threads - 1) / threads;
         size_t shared_mem_size = threads * ndims * sizeof(size_t);
-        sum_dim_kernel<<<blocks, threads, shared_mem_size>>>(data.get(),
+        max_dim_kernel<<<blocks, threads, shared_mem_size>>>(data.get(),
                                                              result.data.get(),
                                                              d_in_dims,
                                                              d_out_strides,
@@ -113,14 +114,15 @@ Tensor Tensor::cuda_sum(optional<size_t> dim) {
     else {
         // A dimension to reduce was not specified, so all dimensions are reduced
         float* d_result;
-        
+
         cudaMalloc(&d_result, sizeof(float));
-        cudaMemset(d_result, 0, sizeof(float));
+        float init_val = -INFINITY;
+        cudaMemcpy(d_result, &init_val, sizeof(float), cudaMemcpyHostToDevice);
 
         int threads = 256;
         int blocks = (total_elements + threads - 1) / threads;
         size_t shared_mem_size = threads * sizeof(float);
-        sum_all_kernel<<<blocks, threads, shared_mem_size>>>(data.get(), d_result, total_elements);
+        max_all_kernel<<<blocks, threads, shared_mem_size>>>(data.get(), d_result, total_elements);
 
         result = Tensor::empty({1}, true);
         result.data = shared_ptr<float>(d_result, [](float* p) { cudaFree(p); });

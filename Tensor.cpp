@@ -173,8 +173,8 @@ Tensor Tensor::empty(initializer_list<size_t> dims, bool use_cuda) {
 }
 
 // Function to create an empty tensor from a shape specified as a vector
-Tensor Tensor::empty(vector<size_t> dims) {
-    return Tensor(dims);
+Tensor Tensor::empty(vector<size_t> dims, bool use_cuda) {
+    return Tensor(dims, use_cuda);
 }
 
 // Function to create a tensor of zeros from a specified shape
@@ -386,7 +386,7 @@ Tensor Tensor::sum(optional<size_t> dim) {
     }
 
     Tensor result;
-    
+
     // A dimension to reduce was specified
     if (dim.has_value()) {
         size_t d = dim.value();
@@ -515,7 +515,12 @@ Tensor Tensor::min(optional<size_t> dim) {
 
 // Function to return the maximum value of all elements in a tensor
 Tensor Tensor::max(optional<size_t> dim) {
+    if (device == "cuda") {
+        return cuda_max(dim);
+    }
+
     Tensor result;
+
     // A dimension to reduce was specified
     if (dim.has_value()) {
         size_t d = dim.value();
