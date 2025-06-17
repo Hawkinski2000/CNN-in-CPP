@@ -61,7 +61,7 @@ class Tensor {
         static Tensor zeros(initializer_list<size_t> dims, bool use_cuda=false);
 
         // Function to create tensor of zeros from a shape specified as a vector
-        static Tensor zeros(vector<size_t> dims);
+        static Tensor zeros(vector<size_t> dims, bool use_cuda=false);
 
         // Function to create a tensor of ones from a specified shape
         static Tensor ones(initializer_list<size_t> dims, bool use_cuda=false);
@@ -107,6 +107,9 @@ class Tensor {
 
         // Function to return the sum of all elements in a tensor
         Tensor sum(optional<size_t> dim = nullopt);
+
+        // Function to return the sum of all elements in a tensor that runs on the GPU
+        Tensor cuda_sum(optional<size_t> dim = nullopt);
 
         // Function to return the mean of all elements in a tensor
         Tensor mean();

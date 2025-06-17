@@ -24,6 +24,7 @@ Tensor::Tensor(const Tensor& other) {
         node = other.node;
         node->tensor = this;
     }
+    device = other.device;
 }
 
 // Move constructor for the Tensor class
@@ -38,6 +39,7 @@ Tensor::Tensor(Tensor&& other)
         node = move(other.node);
         node->tensor = this;
     }
+    device = other.device;
 }
 
 // Constructor for Tensor class used by creation methods that specify a shape as an initializer_list
@@ -183,9 +185,14 @@ Tensor Tensor::zeros(initializer_list<size_t> dims, bool use_cuda) {
 }
 
 // Function to create tensor of zeros from a shape specified as a vector
-Tensor Tensor::zeros(vector<size_t> dims) {
-    Tensor tensor(dims);
-    fill(tensor.data.get(), tensor.data.get() + tensor.total_elements, 0);
+Tensor Tensor::zeros(vector<size_t> dims, bool use_cuda) {
+    Tensor tensor(dims, use_cuda);
+    if (use_cuda) {
+        cuda_fill(tensor.data.get(), tensor.total_elements, 0);
+    }
+    else {
+        fill(tensor.data.get(), tensor.data.get() + tensor.total_elements, 0);
+    }
     return tensor;
 }
 
@@ -268,6 +275,7 @@ Tensor& Tensor::operator=(Tensor&& other) {
         strides = move(other.strides);
         total_elements = move(other.total_elements);
         grad = move(other.grad);
+        device = other.device;
     }
     if (other.node) {
         node = move(other.node);
@@ -288,6 +296,7 @@ Tensor& Tensor::operator=(const Tensor& other) {
             node = other.node;
             node->tensor = this;
         }
+        device = other.device;
     }
     return *this;
 }
@@ -372,7 +381,12 @@ Tensor Tensor::transpose(size_t dim0, size_t dim1) {
 
 // Function to return the sum of all elements in a tensor
 Tensor Tensor::sum(optional<size_t> dim) {
+    if (device == "cuda") {
+        return cuda_sum(dim);
+    }
+
     Tensor result;
+    
     // A dimension to reduce was specified
     if (dim.has_value()) {
         size_t d = dim.value();

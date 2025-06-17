@@ -2,7 +2,7 @@
 #include "Tensor.h"
 
 
-__global__ void add_kernel(float* A, float* B, float* C, size_t total_elements) {
+__global__ void add_kernel(float* __restrict__ A, float* __restrict__ B, float* __restrict__ C, size_t total_elements) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < total_elements) {
         C[idx] = A[idx] + B[idx];
@@ -21,7 +21,7 @@ Tensor Tensor::cuda_add(Tensor& other) {
 
 // ---------------------------------------------------------------------------
 
-__global__ void add_scalar_kernel(float* A, float* B, float value, size_t total_elements) {
+__global__ void add_scalar_kernel(float* __restrict__ A, float* __restrict__ B, float value, size_t total_elements) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < total_elements) {
         B[idx] = A[idx] + value;
