@@ -120,8 +120,14 @@ class Tensor {
         // Function to return the exponential of all elements in a tensor
         Tensor exp();
 
+        // Function to return the exponential of all elements in a tensor that runs on the GPU
+        Tensor cuda_exp();
+
         // Function to return the natural logarithm of all elements in a tensor
         Tensor log();
+
+        // Function to return the natural logarithm of all elements in a tensor that runs on the GPU
+        Tensor cuda_log();
 
         // Function to return the minimum value of all elements in a tensor
         Tensor min(optional<size_t> dim = nullopt);
@@ -307,6 +313,9 @@ class Tensor {
 
         // Function to apply the rectified linear unit function to the input tensor
         friend Tensor relu(const Tensor& input);
+
+        // Function to apply the rectified linear unit function to the input tensor that runs on the GPU.
+        friend Tensor relu_cuda(const Tensor& input);
 
         // Function to apply softmax to the input tensor
         friend Tensor softmax(Tensor& input, optional<size_t> dim);

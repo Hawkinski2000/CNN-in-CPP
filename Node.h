@@ -1,10 +1,9 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include "Tensor.h"
 using namespace std;
 
-
-class Tensor;
 
 // Base class for nodes in the automatic differentiation graph
 class Node {
@@ -14,6 +13,9 @@ class Node {
 
         // Function to propagate gradients backward to child nodes
         virtual void backward() = 0;
+
+        // Function to propagate gradients backward to child nodes that runs on the GPU
+        virtual void cuda_backward() = 0;
 
         // Function to return the type of Node
         virtual string name() = 0;
@@ -28,6 +30,7 @@ class Node {
 class AddBackward : public Node {
     shared_ptr<Tensor> lhs;
     shared_ptr<Tensor> rhs;
+    static float add_total_time;
 
     public:
         // Constructor for the AddBackward class
@@ -35,6 +38,9 @@ class AddBackward : public Node {
 
         // Function to propagate gradients backward to child nodes
         void backward() override;
+
+        // Function to propagate gradients backward to child nodes that runs on the GPU
+        void cuda_backward() override;
 
         // Function to return the type of Node
         string name() override;
@@ -54,6 +60,9 @@ class SubBackward : public Node {
         // Function to propagate gradients backward to child nodes
         void backward() override;
 
+        // Function to propagate gradients backward to child nodes that runs on the GPU
+        void cuda_backward() override;
+
         // Function to return the type of Node
         string name() override;
 };
@@ -71,6 +80,9 @@ class MulBackward : public Node {
 
         // Function to propagate gradients backward to child nodes
         void backward() override;
+
+        // Function to propagate gradients backward to child nodes that runs on the GPU
+        void cuda_backward() override;
 
         // Function to return the type of Node
         string name() override;
@@ -90,6 +102,9 @@ class DivBackward : public Node {
         // Function to propagate gradients backward to child nodes
         void backward() override;
 
+        // Function to propagate gradients backward to child nodes that runs on the GPU
+        void cuda_backward() override;
+
         // Function to return the type of Node
         string name() override;
 };
@@ -100,6 +115,9 @@ class DivBackward : public Node {
 class MatmulBackward : public Node {
     shared_ptr<Tensor> lhs;
     shared_ptr<Tensor> rhs;
+    Tensor dLda;
+    Tensor dLdb; 
+    static float matmul_total_time;
 
     public:
         // Constructor for the MatmulBackward class
@@ -107,6 +125,9 @@ class MatmulBackward : public Node {
 
         // Function to propagate gradients backward to child nodes
         void backward() override;
+
+        // Function to propagate gradients backward to child nodes that runs on the GPU
+        void cuda_backward() override;
 
         // Function to return the type of Node
         string name() override;
@@ -117,6 +138,7 @@ class MatmulBackward : public Node {
 // Node for ReLU in the automatic differentiation graph that inherits from the Node class
 class ReLUBackward : public Node {
     shared_ptr<Tensor> input;
+    static float relu_total_time;
 
     public:
         // Constructor for the ReLUBackward class
@@ -124,6 +146,9 @@ class ReLUBackward : public Node {
 
         // Function to propagate gradients backward to child nodes
         void backward() override;
+
+        // Function to propagate gradients backward to child nodes that runs on the GPU
+        void cuda_backward() override;
 
         // Function to return the type of Node
         string name() override;
@@ -136,6 +161,7 @@ class ReLUBackward : public Node {
 class LogSoftmaxBackward : public Node {
     shared_ptr<Tensor> input;
     shared_ptr<Tensor> softmax_values;
+    static float softmax_total_time;
 
     public:
         // Constructor for the LogSoftmaxBackward class
@@ -143,6 +169,9 @@ class LogSoftmaxBackward : public Node {
 
         // Function to propagate gradients backward to child nodes
         void backward() override;
+
+        // Function to propagate gradients backward to child nodes that runs on the GPU
+        void cuda_backward() override;
 
         // Function to return the type of Node
         string name() override;
@@ -154,6 +183,7 @@ class LogSoftmaxBackward : public Node {
 class NLLLossBackward : public Node {
     shared_ptr<Tensor> input;
     shared_ptr<Tensor> targets;
+    static float nll_total_time;
 
     public:
         // Constructor for the NLLLossBackward class
@@ -161,6 +191,9 @@ class NLLLossBackward : public Node {
 
         // Function to propagate gradients backward to child nodes
         void backward() override;
+
+        // Function to propagate gradients backward to child nodes that runs on the GPU
+        void cuda_backward() override;
 
         // Function to return the type of Node
         string name() override;
@@ -177,6 +210,17 @@ class Conv2dBackward : public Node {
     size_t stride;
     size_t padding;
     size_t dilation;
+    static float conv_total_time;
+    static float copy_dLdc_total_time;
+    static float dLdc_view_total_time;
+    static float dLdw_matmul_total_time;
+    static float dLdw_sum_total_time;
+    static float dLdc_view2_total_time;
+    static float w_view_total_time;
+    static float dLdx_unf_matmul_total_time;
+    static float fold_cuda_total_time;
+    static float weight_grad_total_time;
+    static float input_grad_total_time;
 
     public:
         // Constructor for the Conv2dBackward class
@@ -190,6 +234,9 @@ class Conv2dBackward : public Node {
 
         // Function to propagate gradients backward to child nodes
         void backward() override;
+
+        // Function to propagate gradients backward to child nodes that runs on the GPU
+        void cuda_backward() override;
 
         // Function to return the type of Node
         string name() override;
@@ -205,6 +252,7 @@ class MaxPool2dBackward : public Node {
     size_t stride;
     size_t padding;
     size_t dilation;
+    static float pool_total_time;
 
     public:
         // Constructor for the MaxPool2dBackward class
@@ -217,6 +265,9 @@ class MaxPool2dBackward : public Node {
 
         // Function to propagate gradients backward to child nodes
         void backward() override;
+
+        // Function to propagate gradients backward to child nodes that runs on the GPU
+        void cuda_backward() override;
 
         // Function to return the type of Node
         string name() override;

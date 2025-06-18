@@ -40,6 +40,7 @@ Tensor::Tensor(Tensor&& other)
         node->tensor = this;
     }
     device = other.device;
+    cout << "Move constructor" << endl;
 }
 
 // Constructor for Tensor class used by creation methods that specify a shape as an initializer_list
@@ -57,27 +58,26 @@ Tensor::Tensor(initializer_list<size_t> dims, bool use_cuda) {
         total_elements *= dim;
     }
 
-    // data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
-    
-    // // Allocate GPU memory for the tensor if specified
-    // if (use_cuda) {
-    //     cudaMalloc(&device_data, total_elements * sizeof(float));
-    // }
-
     if (use_cuda) {
         float* device_data;
         cudaMalloc(&device_data, total_elements * sizeof(float));
         data = shared_ptr<float>(device_data, [](float* p) { cudaFree(p); });
+
+        float* device_grad;
+        cudaMalloc(&device_grad, total_elements * sizeof(float));
+        grad = shared_ptr<float>(device_grad, [](float* p) { cudaFree(p); });
+        cuda_fill(grad.get(), total_elements, 0);
+
         device = "cuda";
     } else {
         data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+        
+        grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+        fill(grad.get(), grad.get() + total_elements, 0);
     }
 
     // Calculate strides from tensor dimensions
     strides = compute_strides(dimensions);
-
-    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
-    fill(grad.get(), grad.get() + total_elements, 0);
 }
 
 // Constructor for Tensor class used by creation methods that specify a shape as a vector
@@ -101,16 +101,22 @@ Tensor::Tensor(const vector<size_t>& dims, bool use_cuda) {
         float* device_data;
         cudaMalloc(&device_data, total_elements * sizeof(float));
         data = shared_ptr<float>(device_data, [](float* p) { cudaFree(p); });
+
+        float* device_grad;
+        cudaMalloc(&device_grad, total_elements * sizeof(float));
+        grad = shared_ptr<float>(device_grad, [](float* p) { cudaFree(p); });
+        cuda_fill(grad.get(), total_elements, 0);
+
         device = "cuda";
     } else {
         data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+        
+        grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+        fill(grad.get(), grad.get() + total_elements, 0);
     }
 
     // Calculate strides from tensor dimensions
     strides = compute_strides(dimensions);
-
-    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
-    fill(grad.get(), grad.get() + total_elements, 0);
 }
 
 // Constructor for Tensor class used by tensor() where values are specified
@@ -448,6 +454,10 @@ Tensor Tensor::pow(int exponent) {
 
 // Function to return the exponential of all elements in a tensor
 Tensor Tensor::exp() {
+    if (device == "cuda") {
+        return cuda_exp();
+    }
+
     Tensor result = Tensor(dimensions);
     for (size_t i = 0; i < total_elements; i++) {
         result.data.get()[i] = std::exp(data.get()[i]);
@@ -457,6 +467,10 @@ Tensor Tensor::exp() {
 
 // Function to return the natural logarithm of all elements in a tensor
 Tensor Tensor::log() {
+    if (device == "cuda") {
+        return cuda_log();
+    }
+
     Tensor result = Tensor(dimensions);
     for (size_t i = 0; i < total_elements; i++) {
         result.data.get()[i] = std::log(data.get()[i]);
@@ -728,37 +742,38 @@ bool Tensor::next_index(vector<size_t>& indices, const vector<size_t>& result_di
 
 // Overload the + operator for element-wise addition between tensors
 Tensor Tensor::operator+(Tensor& other) {
-    if (this->device == "cuda" && other.device == "cuda") {
-        return cuda_add(other);
-    }
-
     Tensor result;
 
-    // Need to perform broadcasting since the tensors have different shapes
-    if (dimensions != other.dimensions) {
-        vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
-        result = Tensor(result_dims);
-
-        vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
-        vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
-        vector<size_t> result_strides = compute_strides(result_dims);
-        vector<size_t> indices(result_dims.size(), 0);
-
-        do {
-            size_t a_offset = compute_offset(indices, broadcasted_a_strides);
-            size_t b_offset = compute_offset(indices, broadcasted_b_strides);
-            size_t result_offset = compute_offset(indices, result_strides);
-
-            // Add the values from both tensors and store them in the result tensor
-            result.data.get()[result_offset] = data.get()[a_offset] + other.data.get()[b_offset];
-        } while (next_index(indices, result_dims));
+    if (this->device == "cuda" && other.device == "cuda") {
+        result = cuda_add(other);
     }
-
-    // Otherwise, the tensors have the same shape, so just add element-wise
     else {
-        result = Tensor(dimensions);
-        for (size_t i = 0; i < total_elements; i++) {
-            result.data.get()[i] = data.get()[i] + other.data.get()[i];
+        // Need to perform broadcasting since the tensors have different shapes
+        if (dimensions != other.dimensions) {
+            vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
+            result = Tensor(result_dims);
+
+            vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
+            vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
+            vector<size_t> result_strides = compute_strides(result_dims);
+            vector<size_t> indices(result_dims.size(), 0);
+
+            do {
+                size_t a_offset = compute_offset(indices, broadcasted_a_strides);
+                size_t b_offset = compute_offset(indices, broadcasted_b_strides);
+                size_t result_offset = compute_offset(indices, result_strides);
+
+                // Add the values from both tensors and store them in the result tensor
+                result.data.get()[result_offset] = data.get()[a_offset] + other.data.get()[b_offset];
+            } while (next_index(indices, result_dims));
+        }
+
+        // Otherwise, the tensors have the same shape, so just add element-wise
+        else {
+            result = Tensor(dimensions);
+            for (size_t i = 0; i < total_elements; i++) {
+                result.data.get()[i] = data.get()[i] + other.data.get()[i];
+            }
         }
     }
 
@@ -811,38 +826,39 @@ Tensor& Tensor::operator+=(float value) {
 
 // Overload the - operator for element-wise subtraction between tensors
 Tensor Tensor::operator-(Tensor& other) {
-    if (this->device == "cuda" && other.device == "cuda") {
-        return cuda_sub(other);
-    }
-
     Tensor result;
 
-    // Need to perform broadcasting since the tensors have different shapes
-    if (dimensions != other.dimensions) {
-        vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
-        result = Tensor(result_dims);
-
-        vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
-        vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
-        vector<size_t> result_strides = compute_strides(result_dims);
-
-        vector<size_t> indices(result_dims.size(), 0);
-
-        do {
-            size_t a_offset = compute_offset(indices, broadcasted_a_strides);
-            size_t b_offset = compute_offset(indices, broadcasted_b_strides);
-            size_t result_offset = compute_offset(indices, result_strides);
-
-            // Subtract the values from both tensors and store them in the result tensor
-            result.data.get()[result_offset] = data.get()[a_offset] - other.data.get()[b_offset];
-        } while (next_index(indices, result_dims));
+    if (this->device == "cuda" && other.device == "cuda") {
+        result = cuda_sub(other);
     }
-
-    // Otherwise, the tensors have the same shape, so just subtract element-wise
     else {
-        result = Tensor(dimensions);
-        for (size_t i = 0; i < total_elements; i++) {
-            result.data.get()[i] = data.get()[i] - other.data.get()[i];
+        // Need to perform broadcasting since the tensors have different shapes
+        if (dimensions != other.dimensions) {
+            vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
+            result = Tensor(result_dims);
+
+            vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
+            vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
+            vector<size_t> result_strides = compute_strides(result_dims);
+
+            vector<size_t> indices(result_dims.size(), 0);
+
+            do {
+                size_t a_offset = compute_offset(indices, broadcasted_a_strides);
+                size_t b_offset = compute_offset(indices, broadcasted_b_strides);
+                size_t result_offset = compute_offset(indices, result_strides);
+
+                // Subtract the values from both tensors and store them in the result tensor
+                result.data.get()[result_offset] = data.get()[a_offset] - other.data.get()[b_offset];
+            } while (next_index(indices, result_dims));
+        }
+
+        // Otherwise, the tensors have the same shape, so just subtract element-wise
+        else {
+            result = Tensor(dimensions);
+            for (size_t i = 0; i < total_elements; i++) {
+                result.data.get()[i] = data.get()[i] - other.data.get()[i];
+            }
         }
     }
 
@@ -895,41 +911,42 @@ Tensor& Tensor::operator-=(float value) {
 
 // Overload the * operator for element-wise multiplication between tensors
 Tensor Tensor::operator*(Tensor& other) {
-    if (this->device == "cuda" && other.device == "cuda") {
-        return cuda_mul(other);
-    }
-
     Tensor result;
 
-    // Need to perform broadcasting since the tensors have different shapes
-    if (dimensions != other.dimensions) {
-        vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
-        result = Tensor(result_dims);
-
-        vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
-        vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
-        vector<size_t> result_strides = compute_strides(result_dims);
-
-        vector<size_t> indices(result_dims.size(), 0);
-
-        do {
-            size_t a_offset = compute_offset(indices, broadcasted_a_strides);
-            size_t b_offset = compute_offset(indices, broadcasted_b_strides);
-            size_t result_offset = compute_offset(indices, result_strides);
-
-            // Multiply the values from both tensors and store them in the result tensor
-            result.data.get()[result_offset] = data.get()[a_offset] * other.data.get()[b_offset];
-        } while (next_index(indices, result_dims));
+    if (this->device == "cuda" && other.device == "cuda") {
+        result = cuda_mul(other);
     }
-
-    // Otherwise, the tensors have the same shape, so just multiply element-wise
     else {
-        result = Tensor(dimensions);
-        for (size_t i = 0; i < total_elements; i++) {
-            result.data.get()[i] = data.get()[i] * other.data.get()[i];
+        // Need to perform broadcasting since the tensors have different shapes
+        if (dimensions != other.dimensions) {
+            vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
+            result = Tensor(result_dims);
+
+            vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
+            vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
+            vector<size_t> result_strides = compute_strides(result_dims);
+
+            vector<size_t> indices(result_dims.size(), 0);
+
+            do {
+                size_t a_offset = compute_offset(indices, broadcasted_a_strides);
+                size_t b_offset = compute_offset(indices, broadcasted_b_strides);
+                size_t result_offset = compute_offset(indices, result_strides);
+
+                // Multiply the values from both tensors and store them in the result tensor
+                result.data.get()[result_offset] = data.get()[a_offset] * other.data.get()[b_offset];
+            } while (next_index(indices, result_dims));
+        }
+
+        // Otherwise, the tensors have the same shape, so just multiply element-wise
+        else {
+            result = Tensor(dimensions);
+            for (size_t i = 0; i < total_elements; i++) {
+                result.data.get()[i] = data.get()[i] * other.data.get()[i];
+            }
         }
     }
-
+    
     if (requires_grad) {
         result.node = make_shared<MulBackward>(make_shared<Tensor>(*this), make_shared<Tensor>(other));
         result.node->tensor = &result;
@@ -979,38 +996,39 @@ Tensor& Tensor::operator*=(float value) {
 
 // Overload the / operator for element-wise division between tensors
 Tensor Tensor::operator/(Tensor& other) {
-    if (this->device == "cuda" && other.device == "cuda") {
-        return cuda_div(other);
-    }
-
     Tensor result;
 
-    // Need to perform broadcasting since the tensors have different shapes
-    if (dimensions != other.dimensions) {
-        vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
-        result = Tensor(result_dims);
-
-        vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
-        vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
-        vector<size_t> result_strides = compute_strides(result_dims);
-
-        vector<size_t> indices(result_dims.size(), 0);
-
-        do {
-            size_t a_offset = compute_offset(indices, broadcasted_a_strides);
-            size_t b_offset = compute_offset(indices, broadcasted_b_strides);
-            size_t result_offset = compute_offset(indices, result_strides);
-
-            // Divide the values from both tensors and store them in the result tensor
-            result.data.get()[result_offset] = data.get()[a_offset] / other.data.get()[b_offset];
-        } while (next_index(indices, result_dims));
+    if (this->device == "cuda" && other.device == "cuda") {
+        result = cuda_div(other);
     }
-
-    // Otherwise, the tensors have the same shape, so just divide element-wise
     else {
-        result = Tensor(dimensions);
-        for (size_t i = 0; i < total_elements; i++) {
-            result.data.get()[i] = data.get()[i] / other.data.get()[i];
+        // Need to perform broadcasting since the tensors have different shapes
+        if (dimensions != other.dimensions) {
+            vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
+            result = Tensor(result_dims);
+
+            vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
+            vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
+            vector<size_t> result_strides = compute_strides(result_dims);
+
+            vector<size_t> indices(result_dims.size(), 0);
+
+            do {
+                size_t a_offset = compute_offset(indices, broadcasted_a_strides);
+                size_t b_offset = compute_offset(indices, broadcasted_b_strides);
+                size_t result_offset = compute_offset(indices, result_strides);
+
+                // Divide the values from both tensors and store them in the result tensor
+                result.data.get()[result_offset] = data.get()[a_offset] / other.data.get()[b_offset];
+            } while (next_index(indices, result_dims));
+        }
+
+        // Otherwise, the tensors have the same shape, so just divide element-wise
+        else {
+            result = Tensor(dimensions);
+            for (size_t i = 0; i < total_elements; i++) {
+                result.data.get()[i] = data.get()[i] / other.data.get()[i];
+            }
         }
     }
 
@@ -1151,7 +1169,12 @@ Tensor::TensorSlice::operator float&() {
 
 // Function to call Engine::run_backward() to compute the gradient of the current tensor w.r.t. graph leaves.
 void Tensor::backward() {
-    fill(grad.get(), grad.get() + total_elements, 1);
+    if (device == "cuda") {
+        cuda_fill(grad.get(), total_elements, 1);
+    }
+    else {
+        fill(grad.get(), grad.get() + total_elements, 1);
+    }
     Engine::run_backward(node);
 }
 

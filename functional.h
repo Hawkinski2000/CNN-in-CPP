@@ -6,6 +6,9 @@ using namespace std;
 // Function to apply the rectified linear unit function to the input tensor
 Tensor relu(const Tensor& input);
 
+// Function to apply the rectified linear unit function to the input tensor that runs on the GPU.
+Tensor relu_cuda(const Tensor& input);
+
 // Function to apply softmax to the input tensor
 Tensor softmax(Tensor& input, optional<size_t> dim = nullopt);
 

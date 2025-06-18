@@ -2,6 +2,7 @@
 #include <cublas_v2.h>
 #include "Tensor.h"
 #include "Node.h"
+#include "cuda_utils.cuh"
 #include "time.h"
 
 
@@ -334,11 +335,17 @@ Tensor Tensor::matmul(Tensor& other, bool transpose_a, bool transpose_b, bool cr
         result_dims = {m_result, n_result};
     }
     result.dimensions = result_dims;
-    result.strides = compute_strides(result.dimensions);
 
     result.total_elements = batch_count * m_result * n_result;
-    result.grad = shared_ptr<float>(new float[result.total_elements], default_delete<float[]>());
-    fill(result.grad.get(), result.grad.get() + result.total_elements, 0);
+
+    float* device_grad;
+    cudaMalloc(&device_grad, result.total_elements * sizeof(float));
+    result.grad = shared_ptr<float>(device_grad, [](float* p) { cudaFree(p); });
+    cuda_fill(result.grad.get(), result.total_elements, 0);
+
+    result.device = "cuda";
+
+    result.strides = compute_strides(result.dimensions);
 
     auto result_stop = chrono::steady_clock::now();
     auto result_duration = chrono::duration_cast<chrono::microseconds>(result_stop - result_start);

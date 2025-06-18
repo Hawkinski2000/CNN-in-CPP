@@ -2,6 +2,7 @@
 #include "Tensor.h"
 
 
+// Kernel for cuda_add()
 __global__ void add_kernel(float* __restrict__ A, float* __restrict__ B, float* __restrict__ C, size_t total_elements) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < total_elements) {
@@ -21,6 +22,7 @@ Tensor Tensor::cuda_add(Tensor& other) {
 
 // ---------------------------------------------------------------------------
 
+// Kernel for cuda_add_scalar()
 __global__ void add_scalar_kernel(float* __restrict__ A, float* __restrict__ B, float value, size_t total_elements) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < total_elements) {
@@ -40,6 +42,7 @@ Tensor Tensor::cuda_add_scalar(float value) {
 
 // ---------------------------------------------------------------------------
 
+// Kernel for cuda_add_()
 __global__ void add_inplace_kernel(float* A, float* B, size_t total_elements) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < total_elements) {
@@ -58,6 +61,7 @@ Tensor& Tensor::cuda_add_(const Tensor& other) {
 
 // ---------------------------------------------------------------------------
 
+// Kernel for cuda_add_scalar_()
 __global__ void add_scalar_inplace_kernel(float* A, float value, size_t total_elements) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < total_elements) {

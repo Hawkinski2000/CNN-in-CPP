@@ -2,9 +2,9 @@
 #include "Tensor.h"
 
 
-// Kernel for sum() where a dimension to reduce was not specified, so all dimensions are reduced
+// Kernel for cuda_sum() where a dimension to reduce was not specified, so all dimensions are reduced
 __global__ void sum_all_kernel(const float* __restrict__ data, float* result, size_t size) {
-    extern __shared__ float sdata[]; // array in shared memory
+    extern __shared__ float sdata[]; // array in shared memory for this block
     int tid = threadIdx.x; // Thread ID
     size_t i = blockIdx.x * blockDim.x + threadIdx.x; // Index of element in data to process
 
@@ -37,7 +37,7 @@ __global__ void sum_all_kernel(const float* __restrict__ data, float* result, si
     }
 }
 
-// Kernel for sum() where a dimension to reduce was specified
+// Kernel for cuda_sum() where a dimension to reduce was specified
 __global__ void sum_dim_kernel(const float* __restrict__ input,
                                float* output,
                                const size_t* in_dims,
@@ -82,7 +82,7 @@ Tensor Tensor::cuda_sum(optional<size_t> dim) {
         vector<size_t> out_dims = dimensions;
         out_dims[d] = 1;
 
-        result = Tensor::empty(out_dims, true);
+        result = Tensor::zeros(out_dims, true);
 
         size_t ndims = dimensions.size();
 

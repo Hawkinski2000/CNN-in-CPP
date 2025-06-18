@@ -2,6 +2,7 @@
 #include "Tensor.h"
 
 
+// Kernel for cuda_div() for when broadcasting is not needed
 __global__ void div_kernel(float* A, float* B, float* C, size_t total_elements) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < total_elements) {
@@ -9,18 +10,97 @@ __global__ void div_kernel(float* A, float* B, float* C, size_t total_elements) 
     }
 }
 
+// Kernel for cuda_div() for when broadcasting is needed
+__global__ void broadcast_div_kernel(const float* __restrict__ A,
+                                     const float* __restrict__ B,
+                                     float* __restrict__ C,
+                                     const size_t* __restrict__ dims,
+                                     const size_t* __restrict__ a_strides,
+                                     const size_t* __restrict__ b_strides,
+                                     size_t ndim,
+                                     size_t total_elements) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= total_elements) {
+        return;
+    }
+
+    size_t a_offset = 0, b_offset = 0;
+    size_t linear_idx = idx;
+
+    for (size_t i = 0; i < ndim; i++) {
+        size_t dim_idx = linear_idx % dims[i];
+        linear_idx /= dims[i];
+        if (a_strides[i] > 0) {
+            a_offset += dim_idx * a_strides[i];
+        }
+        if (b_strides[i] > 0) {
+            b_offset += dim_idx * b_strides[i];
+        }
+    }
+
+    C[idx] = A[a_offset] / B[b_offset];
+}
+
 // Function for element-wise multiplication between tensors that runs on the GPU
 Tensor Tensor::cuda_div(Tensor& other) {
-    Tensor result(this->dimensions, true);
-    int threads = 256;
-    int blocks = (total_elements + threads - 1) / threads;
-    div_kernel<<<blocks, threads>>>(this->data.get(), other.data.get(), result.data.get(), result.total_elements);
-    cudaDeviceSynchronize();
+    Tensor result;
+
+    // Need to perform broadcasting since the tensors have different shapes
+    if (dimensions != other.dimensions) {
+        vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
+        result = Tensor(result_dims, true);
+
+        vector<size_t> a_strides = broadcast_strides(dimensions, strides, result_dims);
+        vector<size_t> b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
+
+        size_t* d_result_dims;
+        size_t* d_a_strides;
+        size_t* d_b_strides;
+        cudaMalloc(&d_result_dims, result_dims.size() * sizeof(size_t));
+        cudaMalloc(&d_a_strides, result_dims.size() * sizeof(size_t));
+        cudaMalloc(&d_b_strides, result_dims.size() * sizeof(size_t));
+        cudaMemcpy(d_result_dims, result_dims.data(), result_dims.size() * sizeof(size_t), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_a_strides, a_strides.data(), result_dims.size() * sizeof(size_t), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_b_strides, b_strides.data(), result_dims.size() * sizeof(size_t), cudaMemcpyHostToDevice);
+
+        int threads = 256;
+        int blocks = (result.total_elements + threads - 1) / threads;
+        broadcast_div_kernel<<<blocks, threads>>>(this->data.get(),
+                                                  other.data.get(),
+                                                  result.data.get(),
+                                                  d_result_dims,
+                                                  d_a_strides,
+                                                  d_b_strides,
+                                                  result_dims.size(),
+                                                  result.total_elements);
+
+        cudaDeviceSynchronize();
+
+        cudaFree(d_result_dims);
+        cudaFree(d_a_strides);
+        cudaFree(d_b_strides);
+    }
+
+    // Otherwise, the tensors have the same shape, so just divide element-wise
+    else {
+        result = Tensor(this->dimensions, true);
+
+        int threads = 256;
+        int blocks = (total_elements + threads - 1) / threads;
+        div_kernel<<<blocks, threads>>>(this->data.get(),
+                                        other.data.get(),
+                                        result.data.get(),
+                                        result.total_elements);
+
+        cudaDeviceSynchronize();
+    }
+
     return result;
 }
 
 // ---------------------------------------------------------------------------
 
+// Kernel for cuda_div_scalar()
 __global__ void div_scalar_kernel(float* A, float* B, float value, size_t total_elements) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < total_elements) {
@@ -40,6 +120,7 @@ Tensor Tensor::cuda_div_scalar(float value) {
 
 // ---------------------------------------------------------------------------
 
+// Kernel for cuda_div_()
 __global__ void div_inplace_kernel(float* A, float* B, size_t total_elements) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < total_elements) {
@@ -58,6 +139,7 @@ Tensor& Tensor::cuda_div_(const Tensor& other) {
 
 // ---------------------------------------------------------------------------
 
+// Kernel for cuda_div_scalar_()
 __global__ void div_scalar_inplace_kernel(float* A, float value, size_t total_elements) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < total_elements) {

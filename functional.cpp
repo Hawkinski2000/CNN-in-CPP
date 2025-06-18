@@ -3,12 +3,18 @@
 #include "Node.h"
 using namespace std;
 
-
 // Function to apply the rectified linear unit function to the input tensor
 Tensor relu(const Tensor& input) {
-    Tensor result = Tensor(input.dimensions);
-    for (size_t i = 0; i < input.total_elements; i++) {
-        result.data.get()[i] = max(0.0f, input.data.get()[i]);
+    Tensor result;
+
+    if (input.device == "cuda") {
+        result = relu_cuda(input);
+    }
+    else {
+        result = Tensor(input.dimensions);
+        for (size_t i = 0; i < input.total_elements; i++) {
+            result.data.get()[i] = max(0.0f, input.data.get()[i]);
+        }
     }
 
     if (input.requires_grad) {
@@ -42,6 +48,7 @@ Tensor log_softmax(Tensor& input, optional<size_t> dim) {
     shifted_values.requires_grad = false;
     Tensor result = shifted_values - log_sum_exp_values;
 
+    exp_values.requires_grad = false;
     Tensor softmax_values = exp_values / sum_exp_values;
 
     if (input.requires_grad) {

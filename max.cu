@@ -1,8 +1,9 @@
 #include <iostream>
 #include "Tensor.h"
+#include "cuda_utils.cuh"
 
 
-// Kernel for max() where a dimension to reduce was not specified, so all dimensions are reduced
+// Kernel for cuda_max() where a dimension to reduce was not specified, so all dimensions are reduced
 __global__ void max_all_kernel(const float* __restrict__ data, float* result, size_t size) {
     extern __shared__ float sdata[]; // array in shared memory for this block
     int tid = threadIdx.x; // Thread ID
@@ -37,7 +38,7 @@ __global__ void max_all_kernel(const float* __restrict__ data, float* result, si
     }
 }
 
-// Kernel for max() where a dimension to reduce was specified
+// Kernel for cuda_max() where a dimension to reduce was specified
 __global__ void max_dim_kernel(const float* __restrict__ input,
                                float* output,
                                const size_t* in_dims,
@@ -82,8 +83,7 @@ Tensor Tensor::cuda_max(optional<size_t> dim) {
         out_dims[d] = 1;
 
         result = Tensor::empty(out_dims, true);
-        float init_val = -INFINITY;
-        cudaMemcpy(result.data.get(), &init_val, sizeof(float) * result.total_elements, cudaMemcpyHostToDevice);
+        cuda_fill(result.data.get(), result.total_elements, -INFINITY);
 
         size_t ndims = dimensions.size();
 
@@ -116,8 +116,7 @@ Tensor Tensor::cuda_max(optional<size_t> dim) {
         float* d_result;
 
         cudaMalloc(&d_result, sizeof(float));
-        float init_val = -INFINITY;
-        cudaMemcpy(d_result, &init_val, sizeof(float), cudaMemcpyHostToDevice);
+        cuda_fill(d_result, 1, -INFINITY);
 
         int threads = 256;
         int blocks = (total_elements + threads - 1) / threads;
