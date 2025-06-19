@@ -61,28 +61,38 @@ Tensor log_softmax(Tensor& input, optional<size_t> dim) {
 
 // Function to compute the negative log likelihood loss from the input tensor and targets
 Tensor nll_loss(Tensor& input, Tensor& targets) {
-    Tensor result = Tensor::zeros({1});
-    size_t batch_size;
-    size_t num_classes;
-    if (input.dimensions.size() < 2) {
-        batch_size = 1;
-        num_classes = input.dimensions[0];
+    Tensor result;
+
+    if (input.device == "cuda") {
+        result = nll_loss_cuda(input, targets);
     }
     else {
-        batch_size = input.dimensions[0];
-        num_classes = input.dimensions[1];
+        result = Tensor::zeros({1});
+        
+        size_t batch_size;
+        size_t num_classes;
+        if (input.dimensions.size() < 2) {
+            batch_size = 1;
+            num_classes = input.dimensions[0];
+        }
+        else {
+            batch_size = input.dimensions[0];
+            num_classes = input.dimensions[1];
+        }
+        
+        for (size_t i = 0; i < batch_size; i++) {
+            size_t class_idx = static_cast<size_t>(targets[i]);
+            size_t flat_index = i * num_classes + class_idx;
+            result[0] -= input.data.get()[flat_index];
+        }
+        result[0] /= batch_size;
     }
-    for (size_t i = 0; i < batch_size; i++) {
-        size_t class_idx = static_cast<size_t>(targets[i]);
-        size_t flat_index = i * num_classes + class_idx;
-        result[0] -= input.data.get()[flat_index];
-    }
-    result[0] /= batch_size;
 
     if (input.requires_grad) {
         result.node = make_shared<NLLLossBackward>(make_shared<Tensor>(input), make_shared<Tensor>(targets));
         result.node->tensor = &result;
     }
+
     return result;
 }
 

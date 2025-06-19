@@ -186,7 +186,12 @@ Tensor Tensor::empty(vector<size_t> dims, bool use_cuda) {
 // Function to create a tensor of zeros from a specified shape
 Tensor Tensor::zeros(initializer_list<size_t> dims, bool use_cuda) {
     Tensor tensor(dims, use_cuda);
-    fill(tensor.data.get(), tensor.data.get() + tensor.total_elements, 0);
+    if (use_cuda) {
+        cuda_fill(tensor.data.get(), tensor.total_elements, 0);
+    }
+    else {
+        fill(tensor.data.get(), tensor.data.get() + tensor.total_elements, 0);
+    }
     return tensor;
 }
 
@@ -222,18 +227,25 @@ Tensor Tensor::ones(vector<size_t> dims) {
 }
 
 // Function to create a tensor of random values from a specified shape
-Tensor Tensor::rand(initializer_list<size_t> dims, size_t in_features) {
-    Tensor tensor(dims);
-    if (in_features == 0) {
-        in_features = tensor.dimensions[0];
+Tensor Tensor::rand(initializer_list<size_t> dims, size_t in_features, bool use_cuda) {
+    Tensor tensor;
+
+    if (use_cuda) {
+        tensor = cuda_rand(dims, in_features);
     }
-    float limit = sqrt(1.0f / in_features);
-    random_device rd;
-    mt19937 gen(rd()); // Mersenne Twister RNG
-    uniform_real_distribution<float> dist(-limit, limit);
-    for (size_t i = 0; i < tensor.total_elements; i++) {
-        tensor.data.get()[i] = dist(gen); 
+    else {
+        if (in_features == 0) {
+            in_features = tensor.dimensions[0];
+        }
+        float limit = sqrt(1.0f / in_features);
+        random_device rd;
+        mt19937 gen(rd()); // Mersenne Twister RNG
+        uniform_real_distribution<float> dist(-limit, limit);
+        for (size_t i = 0; i < tensor.total_elements; i++) {
+            tensor.data.get()[i] = dist(gen); 
+        }
     }
+
     return tensor;
 }
 
@@ -316,6 +328,8 @@ Tensor Tensor::view(initializer_list<int> shape) {
     // The new tensor shares the same data as the original tensor
     result.data = data;
 
+    result.grad = grad;
+
     // Calculate dimensions of the new tensor
     vector<size_t> dims(shape.size());
     size_t product = 1;
@@ -350,7 +364,7 @@ Tensor Tensor::view(initializer_list<int> shape) {
 
     result.total_elements = total_elements;
 
-    result.grad = grad;
+    result.device = device;
 
     return result;
 }
@@ -583,7 +597,12 @@ Tensor Tensor::max(optional<size_t> dim) {
 
 // Function to return the indices of the maximum value of all elements in a tensor
 Tensor Tensor::argmax(optional<size_t> dim) {
+    if (device == "cuda") {
+        return cuda_argmax(dim);
+    }
+
     Tensor result;
+    
     // A dimension to reduce was specified
     if (dim.has_value()) {
         size_t d = dim.value();
@@ -650,6 +669,28 @@ bool Tensor::equal(const Tensor& other) {
     }
     return false;
 }
+
+// Overload the == operator for element-wise equality between tensors
+Tensor Tensor::operator==(const Tensor& other) {
+    if (device == "cuda") {
+        return cuda_eq(other);
+    }
+    
+    Tensor result(dimensions);
+
+    for (size_t i = 0; i < total_elements; i++) {
+        result.data.get()[i] = (data.get()[i] == other.data.get()[i]) ? 1.0f : 0.0f;
+        if (data.get()[i] == other.data.get()[i]) {
+            result.data.get()[i] = 1.0f;
+        }
+        else {
+            result.data.get()[i] = 0.0f;
+        }
+    }
+
+    return result;
+}
+
 
 // ---------------------------------------------------------------------------
 

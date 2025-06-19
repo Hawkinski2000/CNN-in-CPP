@@ -6,6 +6,7 @@ using namespace std;
 
 
 class Node;
+class Optimizer;
 
 class Tensor {
     public:
@@ -70,7 +71,10 @@ class Tensor {
         static Tensor ones(vector<size_t> dims);
 
         // Function to create a tensor of random values from a specified shape
-        static Tensor rand(initializer_list<size_t> dims, size_t in_features = 0);
+        static Tensor rand(initializer_list<size_t> dims, size_t in_features = 0, bool use_cuda=false);
+
+        // Function to create a tensor of random values from a specified shape that runs on the GPU
+        static Tensor cuda_rand(initializer_list<size_t> dims, size_t in_features = 0);
 
         // Function to create tensor of random values from a shape specified as a vector
         static Tensor rand(vector<size_t> dims, size_t in_features = 0);
@@ -141,8 +145,17 @@ class Tensor {
         // Function to return the indices of the maximum value of all elements in a tensor
         Tensor argmax(optional<size_t> dim = nullopt);
 
+        // Function to return the indices of the maximum value of all elements in a tensor that runs on the GPU
+        Tensor cuda_argmax(optional<size_t> dim = nullopt);
+
         // Function to return true if two tensors have the same shape and elements, otherwise false.
         bool equal(const Tensor& other);
+
+        // Overload the == operator for element-wise equality between tensors
+        Tensor operator==(const Tensor& other);
+        
+        // Function for element-wise equality between tensors that runs on the GPU
+        Tensor cuda_eq(const Tensor& other);
 
         // Function to return the matrix product of two tensors.
         // This function uses code from Simon Boehm's repository, "SGEMM_CUDA":
@@ -326,6 +339,9 @@ class Tensor {
         // Function to compute the negative log likelihood loss from the input tensor and targets
         friend Tensor nll_loss(Tensor& input, Tensor& targets);
 
+        // Function to compute the negative log likelihood loss from the input tensor and targets that runs on the GPU.
+        friend Tensor nll_loss_cuda(Tensor& input, Tensor& targets);
+
         // Function to compute the cross entropy loss between input tensor and targets
         friend Tensor cross_entropy(Tensor& input, Tensor& targets);
 
@@ -343,6 +359,8 @@ class Tensor {
 
         // Function to apply a 2D max pooling over an input tensor
         friend Tensor maxpool2d_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t stride, size_t padding, size_t dilation);
+
+        friend void zero_grad();
 
         // ---------------------------------------------------------------------------
 
@@ -365,6 +383,7 @@ class Tensor {
         friend class NLLLossBackward;
         friend class Conv2dBackward;
         friend class MaxPool2dBackward;
+        friend class Optimizer;
 
         // ---------------------------------------------------------------------------
 

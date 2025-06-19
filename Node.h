@@ -210,6 +210,8 @@ class Conv2dBackward : public Node {
     size_t stride;
     size_t padding;
     size_t dilation;
+    Tensor dLdw;
+    Tensor dLdx;
     static float conv_total_time;
     static float copy_dLdc_total_time;
     static float dLdc_view_total_time;

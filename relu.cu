@@ -5,6 +5,7 @@
 // Kernel for relu_cuda()
 __global__ void relu_kernel(const float* __restrict__ input, float* output, size_t total_elements) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    
     if (idx < total_elements) {
         output[idx] = fmaxf(0.0f, input[idx]);
     }

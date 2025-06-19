@@ -5,7 +5,7 @@
 
 // Kernel for cuda_max() where a dimension to reduce was not specified, so all dimensions are reduced
 __global__ void max_all_kernel(const float* __restrict__ data, float* result, size_t size) {
-    extern __shared__ float sdata[]; // array in shared memory for this block
+    extern __shared__ float sdata[]; // Array in shared memory for this block
     int tid = threadIdx.x; // Thread ID
     size_t i = blockIdx.x * blockDim.x + threadIdx.x; // Index of element in data to process
 
@@ -21,7 +21,7 @@ __global__ void max_all_kernel(const float* __restrict__ data, float* result, si
 
     // Parallel reduction in shared memory. The range in data in the block to
     // find the max in is halved each time until the max of data in the block
-    // is accumulated in sdata[0]. E.g., if data contains [1, 2, 3, 4], after
+    // is stored in sdata[0]. E.g., if data contains [1, 2, 3, 4], after
     // each iteration, sdata will contain [3, 4, 3, 4], then [4, 4, 3, 4],
     // where sdata[0] = 4, the max of [1, 2, 3, 4].
     for (size_t s = blockDim.x / 2; s > 0; s >>= 1) {
@@ -31,8 +31,8 @@ __global__ void max_all_kernel(const float* __restrict__ data, float* result, si
         __syncthreads();
     }
 
-    // The max of data in the block that was accumulated in sdata[0] will
-    // replace result if it's the new overall max.
+    // The max of data in the block that was stored in sdata[0] will replace
+    // result if it's the new overall max.
     if (tid == 0) {
         atomicMax((int*)result, __float_as_int(sdata[0]));
     }
@@ -51,8 +51,8 @@ __global__ void max_dim_kernel(const float* __restrict__ input,
         return;
     }
 
-    extern __shared__ size_t shared_mem[]; // array in shared memory for this block
-    size_t* idx = &shared_mem[threadIdx.x * ndims]; // An array containing the multidimensional index of the output position to accumulate into
+    extern __shared__ size_t shared_mem[]; // Array in shared memory for this block
+    size_t* idx = &shared_mem[threadIdx.x * ndims]; // An array containing the multidimensional index of the output position to store into
 
     size_t idx_copy = i;
     for (size_t j = ndims; j-- > 0;) {
@@ -67,8 +67,8 @@ __global__ void max_dim_kernel(const float* __restrict__ input,
         out_flat_idx += idx[j] * out_strides[j];
     }
 
-    // The max of data in the block that was accumulated in sdata[0] will
-    // replace result if it's the new overall max.
+    // The max of data in the block that was stored in sdata[0] will replace
+    // result if it's the new overall max.
     atomicMax((int*)&output[out_flat_idx], __float_as_int(input[i]));
 }
 

@@ -296,6 +296,7 @@ __global__ void log_softmax_backward_kernel(const float* __restrict__ dLdx, floa
 // Function to propagate gradients backward to child nodes that runs on the GPU
 void LogSoftmaxBackward::cuda_backward() {
     Tensor dLdy = *tensor;
+    dLdy.data = tensor->grad;
 
     Tensor sum_dLdy = dLdy.sum(1);
 
@@ -315,32 +316,30 @@ void LogSoftmaxBackward::cuda_backward() {
 // ---------------------------------------------------------------------------
 
 // Kernel for cuda_backward() of NLLLossBackward nodes
-__global__ void nll_loss_backward_kernel(const float* __restrict__ grad_output,
-                                    float* lhs_grad,
-                                    float* rhs_grad,
-                                    size_t lhs_size,
-                                    size_t rhs_size,
-                                    size_t total_elements) {
-    size_t i = blockIdx.x * blockDim.x + threadIdx.x; // Index of element in grad_output to accumulate to
-    if (i >= total_elements) {
-        return;
+__global__ void nll_loss_backward_kernel(const float* __restrict__ targets,
+                                         float* __restrict__ grad,
+                                         size_t batch_size,
+                                         size_t num_classes) {
+    size_t i = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    if (i < batch_size) {
+        size_t y_i = static_cast<size_t>(targets[i]);
+        size_t idx = i * num_classes + y_i;
+        atomicAdd(&grad[idx], -1.0f / static_cast<float>(batch_size));
     }
-
-    float grad_val = grad_output[i];
-    atomicAdd(&lhs_grad[i % lhs_size], grad_val);
-    atomicAdd(&rhs_grad[i % rhs_size], grad_val);
 }
 
 // Function to propagate gradients backward to child nodes that runs on the GPU
 void NLLLossBackward::cuda_backward() {
-    // int threads = 256;
-    // int blocks = (tensor->total_elements + threads - 1) / threads;
-    // nll_loss_backward_kernel<<<blocks, threads>>>(tensor->grad.get(),
-    //                                          lhs->grad.get(),
-    //                                          rhs->grad.get(),
-    //                                          lhs->total_elements,
-    //                                          rhs->total_elements,
-    //                                          tensor->total_elements);
+    size_t batch_size = input->dimensions[0];
+    size_t num_classes = input->dimensions[1];
+
+    int threads = 256;
+    int blocks = (batch_size + threads - 1) / threads;
+    nll_loss_backward_kernel<<<blocks, threads>>>(targets->data.get(),
+                                                  input->grad.get(),
+                                                  batch_size,
+                                                  num_classes);
 
     cudaDeviceSynchronize();
 }
@@ -348,32 +347,36 @@ void NLLLossBackward::cuda_backward() {
 // ---------------------------------------------------------------------------
 
 // Kernel for cuda_backward() of Conv2dBackward nodes
-__global__ void conv2d_backward_kernel(const float* __restrict__ grad_output,
-                                    float* lhs_grad,
-                                    float* rhs_grad,
-                                    size_t lhs_size,
-                                    size_t rhs_size,
-                                    size_t total_elements) {
-    size_t i = blockIdx.x * blockDim.x + threadIdx.x; // Index of element in grad_output to accumulate to
-    if (i >= total_elements) {
-        return;
+__global__ void conv2d_weight_backward_kernel(float* dLdw, float* w_grad, size_t w_size) {
+    size_t i = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    if (i < w_size) {
+        atomicAdd(&w_grad[i], dLdw[i]);
     }
-
-    float grad_val = grad_output[i];
-    atomicAdd(&lhs_grad[i % lhs_size], grad_val);
-    atomicAdd(&rhs_grad[i % rhs_size], grad_val);
 }
+
+__global__ void conv2d_input_backward_kernel(float* dLdx, float* x_grad, size_t x_size) {
+    size_t i = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    if (i < x_size) {
+        atomicAdd(&x_grad[i], dLdx[i]);
+    }
+}
+
 
 // Function to propagate gradients backward to child nodes that runs on the GPU
 void Conv2dBackward::cuda_backward() {
-    // int threads = 256;
-    // int blocks = (tensor->total_elements + threads - 1) / threads;
-    // conv2d_backward_kernel<<<blocks, threads>>>(tensor->grad.get(),
-    //                                          lhs->grad.get(),
-    //                                          rhs->grad.get(),
-    //                                          lhs->total_elements,
-    //                                          rhs->total_elements,
-    //                                          tensor->total_elements);
+    int threads = 256;
+
+    int weight_blocks = (dLdw.total_elements + threads - 1) / threads;
+    conv2d_weight_backward_kernel<<<weight_blocks, threads>>>(dLdw.data.get(),
+                                                              weight->grad.get(),
+                                                              dLdw.total_elements);
+
+    int input_blocks = (dLdx.total_elements + threads - 1) / threads;
+    conv2d_input_backward_kernel<<<input_blocks, threads>>>(dLdx.data.get(),
+                                                            input->grad.get(),
+                                                            dLdx.total_elements);
 
     cudaDeviceSynchronize();
 }
@@ -382,31 +385,29 @@ void Conv2dBackward::cuda_backward() {
 
 // Kernel for cuda_backward() of MaxPool2dBackward nodes
 __global__ void maxpool2d_backward_kernel(const float* __restrict__ grad_output,
-                                    float* lhs_grad,
-                                    float* rhs_grad,
-                                    size_t lhs_size,
-                                    size_t rhs_size,
-                                    size_t total_elements) {
-    size_t i = blockIdx.x * blockDim.x + threadIdx.x; // Index of element in grad_output to accumulate to
-    if (i >= total_elements) {
+                                          const float* __restrict__ max_indices,
+                                          float* __restrict__ grad_input,
+                                          size_t total_elements) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx >= total_elements) {
         return;
     }
 
-    float grad_val = grad_output[i];
-    atomicAdd(&lhs_grad[i % lhs_size], grad_val);
-    atomicAdd(&rhs_grad[i % rhs_size], grad_val);
+    int max_idx = static_cast<int>(__float2int_rn(max_indices[idx]));
+
+    atomicAdd(&grad_input[max_idx], grad_output[idx]);
 }
 
 // Function to propagate gradients backward to child nodes that runs on the GPU
 void MaxPool2dBackward::cuda_backward() {
-    // int threads = 256;
-    // int blocks = (tensor->total_elements + threads - 1) / threads;
-    // maxpool2d_backward_kernel<<<blocks, threads>>>(tensor->grad.get(),
-    //                                          lhs->grad.get(),
-    //                                          rhs->grad.get(),
-    //                                          lhs->total_elements,
-    //                                          rhs->total_elements,
-    //                                          tensor->total_elements);
+    int threads = 256;
+    int blocks = (tensor->total_elements + threads - 1) / threads;
+
+    maxpool2d_backward_kernel<<<blocks, threads>>>(tensor->grad.get(),
+                                                   max_indices->data.get(),
+                                                   input->grad.get(),
+                                                   tensor->total_elements);
 
     cudaDeviceSynchronize();
 }

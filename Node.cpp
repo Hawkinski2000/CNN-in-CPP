@@ -303,7 +303,6 @@ void LogSoftmaxBackward::backward() {
     Tensor dLdy = *tensor;
 
     if (tensor->device == "cuda") {
-        cudaMemcpy(dLdy.data.get(), tensor->grad.get(), tensor->total_elements * sizeof(float), cudaMemcpyDeviceToDevice);
         cuda_backward();
     }
     else {
@@ -338,20 +337,18 @@ float NLLLossBackward::nll_total_time = 0;
 
 // Function to propagate gradients backward to child nodes
 void NLLLossBackward::backward() {
-    auto nll_start = chrono::steady_clock::now();
-    size_t batch_size = input->dimensions[0];
-    size_t num_classes = input->dimensions[1];
-    
-    for (size_t i = 0; i < batch_size; i++) {
-        size_t target_class = static_cast<size_t>(targets->data.get()[i]);
-        size_t idx = i * num_classes + target_class;
-        input->grad.get()[idx] += -1 / static_cast<float>(batch_size);
+    if (tensor->device == "cuda") {
+        cuda_backward();
     }
-    auto nll_stop = chrono::steady_clock::now();
-    auto nll_duration = chrono::duration_cast<chrono::microseconds>(nll_stop - nll_start);
-    nll_total_time += nll_duration.count();
-    if (Time::global_step == 2810) {
-        // cout << "Average nll backward duration: " << nll_total_time / 2811 << " μs" << endl;
+    else {
+        size_t batch_size = input->dimensions[0];
+        size_t num_classes = input->dimensions[1];
+    
+        for (size_t i = 0; i < batch_size; i++) {
+            size_t target_class = static_cast<size_t>(targets->data.get()[i]);
+            size_t idx = i * num_classes + target_class;
+            input->grad.get()[idx] += -1 / static_cast<float>(batch_size);
+        }
     }
 }
 
@@ -404,7 +401,12 @@ void Conv2dBackward::backward() {
 
     auto copy_dLdc_start = chrono::steady_clock::now();
     // -----------------------------------------------------------------------------------------------
-    copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdc.data.get());
+    if (tensor->device == "cuda") {
+        cudaMemcpy(dLdc.data.get(), tensor->grad.get(), tensor->total_elements * sizeof(float), cudaMemcpyDeviceToDevice);
+    }
+    else {
+        copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdc.data.get());
+    }
     // -----------------------------------------------------------------------------------------------
     auto copy_dLdc_stop = chrono::steady_clock::now();
     auto copy_dLdc_duration = chrono::duration_cast<chrono::microseconds>(copy_dLdc_stop - conv_start);
@@ -441,7 +443,7 @@ void Conv2dBackward::backward() {
 
     auto dLdw_matmul_start = chrono::steady_clock::now();
     // -----------------------------------------------------------------------------------------------
-    Tensor dLdw = dLdc.matmul(*inp_unf, true, true, false);
+    dLdw = dLdc.matmul(*inp_unf, true, true, false);
     // -----------------------------------------------------------------------------------------------
     auto dLdw_matmul_stop = chrono::steady_clock::now();
     auto dLdw_matmul_duration = chrono::duration_cast<chrono::microseconds>(dLdw_matmul_stop - dLdw_matmul_start);
@@ -502,7 +504,7 @@ void Conv2dBackward::backward() {
 
     // -----------------------------------------------------------------------------------------------
     auto fold_cuda_start = chrono::steady_clock::now();
-    Tensor dLdx = fold_cuda(dLdx_unf, {input->dimensions[2], input->dimensions[3]}, {kH, kW}, dilation, padding, stride);
+    dLdx = fold_cuda(dLdx_unf, {input->dimensions[2], input->dimensions[3]}, {kH, kW}, dilation, padding, stride);
     auto fold_cuda_stop = chrono::steady_clock::now();
     auto fold_cuda_duration = chrono::duration_cast<chrono::microseconds>(fold_cuda_stop - fold_cuda_start);
     fold_cuda_total_time += fold_cuda_duration.count();
@@ -511,37 +513,42 @@ void Conv2dBackward::backward() {
     }
     // -----------------------------------------------------------------------------------------------
 
-    // -----------------------------------------------------------------------------------------------
-    auto weight_grad_start = chrono::steady_clock::now();
-    for (size_t i = 0; i < weight->total_elements; i++) {
-        weight->grad.get()[i] += dLdw.data.get()[i];
+    if (tensor->device == "cuda") {
+        cuda_backward();
     }
-    auto weight_grad_stop = chrono::steady_clock::now();
-    auto weight_grad_duration = chrono::duration_cast<chrono::microseconds>(weight_grad_stop - weight_grad_start);
-    weight_grad_total_time += weight_grad_duration.count();
-    if (Time::global_step == 2810) {
-        // cout << "Average weight_grad duration: " << weight_grad_total_time / (2 * 2811) << " μs" << endl;
-    }
-    // -----------------------------------------------------------------------------------------------
+    else {
+        // -----------------------------------------------------------------------------------------------
+        auto weight_grad_start = chrono::steady_clock::now();
+        for (size_t i = 0; i < weight->total_elements; i++) {
+            weight->grad.get()[i] += dLdw.data.get()[i];
+        }
+        auto weight_grad_stop = chrono::steady_clock::now();
+        auto weight_grad_duration = chrono::duration_cast<chrono::microseconds>(weight_grad_stop - weight_grad_start);
+        weight_grad_total_time += weight_grad_duration.count();
+        if (Time::global_step == 2810) {
+            // cout << "Average weight_grad duration: " << weight_grad_total_time / (2 * 2811) << " μs" << endl;
+        }
+        // -----------------------------------------------------------------------------------------------
 
-    // -----------------------------------------------------------------------------------------------
-    auto input_grad_start = chrono::steady_clock::now();
-    for (size_t i = 0; i < input->total_elements; i++) {
-        input->grad.get()[i] += dLdx.data.get()[i];
-    }
-    auto input_grad_stop = chrono::steady_clock::now();
-    auto input_grad_duration = chrono::duration_cast<chrono::microseconds>(input_grad_stop - input_grad_start);
-    input_grad_total_time += input_grad_duration.count();
-    if (Time::global_step == 2810) {
-        // cout << "Average input_grad duration: " << input_grad_total_time / (2 * 2811) << " μs" << endl;
-    }
-    // -----------------------------------------------------------------------------------------------
+        // -----------------------------------------------------------------------------------------------
+        auto input_grad_start = chrono::steady_clock::now();
+        for (size_t i = 0; i < input->total_elements; i++) {
+            input->grad.get()[i] += dLdx.data.get()[i];
+        }
+        auto input_grad_stop = chrono::steady_clock::now();
+        auto input_grad_duration = chrono::duration_cast<chrono::microseconds>(input_grad_stop - input_grad_start);
+        input_grad_total_time += input_grad_duration.count();
+        if (Time::global_step == 2810) {
+            // cout << "Average input_grad duration: " << input_grad_total_time / (2 * 2811) << " μs" << endl;
+        }
+        // -----------------------------------------------------------------------------------------------
 
-    auto conv_stop = chrono::steady_clock::now();
-    auto conv_duration = chrono::duration_cast<chrono::microseconds>(conv_stop - conv_start);
-    conv_total_time += conv_duration.count();
-    if (Time::global_step == 2810) {
-        // cout << "Average conv backward duration: " << conv_total_time / (2 * 2811) << " μs" << endl;
+        auto conv_stop = chrono::steady_clock::now();
+        auto conv_duration = chrono::duration_cast<chrono::microseconds>(conv_stop - conv_start);
+        conv_total_time += conv_duration.count();
+        if (Time::global_step == 2810) {
+            // cout << "Average conv backward duration: " << conv_total_time / (2 * 2811) << " μs" << endl;
+        }
     }
 }
 
@@ -575,43 +582,48 @@ float MaxPool2dBackward::pool_total_time = 0;
 // Function to propagate gradients backward to child nodes
 void MaxPool2dBackward::backward() {
     auto pool_start = chrono::steady_clock::now();
-    Tensor dLdc = *tensor;
-    copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdc.data.get());
-
-    size_t N = input->dimensions[0];
-
-    size_t C = input->dimensions[1];
-
-    size_t kH = *kernel_size.begin(); // Kernel height
-    size_t kW; // Kernel width
-    if (kernel_size.size() == 1) {
-        kW = kH;
+    if (tensor->device == "cuda") {
+        cuda_backward();
     }
     else {
-        kW = *(kernel_size.begin() + 1);
-    }
+        Tensor dLdc = *tensor;
+        copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdc.data.get());
 
-    size_t in_H = input->dimensions[2]; // input height
-    size_t in_W = input->dimensions[3]; // input width
+        size_t N = input->dimensions[0];
 
-    size_t out_H = ((in_H + 2 * padding - dilation * (kH - 1) - 1) / stride) + 1; // Output height
-    size_t out_W = ((in_W + 2 * padding - dilation * (kW - 1) - 1) / stride) + 1; // Output width
+        size_t C = input->dimensions[1];
 
-    for (size_t n = 0; n < N; n++) { // Sample in batch
-        for (size_t c = 0; c < C; c++) { // input channel index
-            for (size_t out_h = 0; out_h < out_H; out_h++) { // Output height position
-                for (size_t out_w = 0; out_w < out_W; out_w++) { // Output width position
-                    size_t max_idx = max_indices->data.get()[((n * C + c) * out_H + out_h) * out_W + out_w];
-                    input->grad.get()[max_idx] += dLdc.data.get()[((n * C + c) * out_H + out_h) * out_W + out_w];
+        size_t kH = *kernel_size.begin(); // Kernel height
+        size_t kW; // Kernel width
+        if (kernel_size.size() == 1) {
+            kW = kH;
+        }
+        else {
+            kW = *(kernel_size.begin() + 1);
+        }
+
+        size_t in_H = input->dimensions[2]; // input height
+        size_t in_W = input->dimensions[3]; // input width
+
+        size_t out_H = ((in_H + 2 * padding - dilation * (kH - 1) - 1) / stride) + 1; // Output height
+        size_t out_W = ((in_W + 2 * padding - dilation * (kW - 1) - 1) / stride) + 1; // Output width
+
+        for (size_t n = 0; n < N; n++) { // Sample in batch
+            for (size_t c = 0; c < C; c++) { // input channel index
+                for (size_t out_h = 0; out_h < out_H; out_h++) { // Output height position
+                    for (size_t out_w = 0; out_w < out_W; out_w++) { // Output width position
+                        size_t max_idx = max_indices->data.get()[((n * C + c) * out_H + out_h) * out_W + out_w];
+                        input->grad.get()[max_idx] += dLdc.data.get()[((n * C + c) * out_H + out_h) * out_W + out_w];
+                    }
                 }
             }
         }
-    }
-    auto pool_stop = chrono::steady_clock::now();
-    auto pool_duration = chrono::duration_cast<chrono::microseconds>(pool_stop - pool_start);
-    pool_total_time += pool_duration.count();
-    if (Time::global_step == 2810) {
-        // cout << "Average pool backward duration: " << pool_total_time / (2 * 2811) << " μs" << endl;
+        auto pool_stop = chrono::steady_clock::now();
+        auto pool_duration = chrono::duration_cast<chrono::microseconds>(pool_stop - pool_start);
+        pool_total_time += pool_duration.count();
+        if (Time::global_step == 2810) {
+            // cout << "Average pool backward duration: " << pool_total_time / (2 * 2811) << " μs" << endl;
+        }
     }
 }
 
