@@ -27,14 +27,15 @@ __global__ void broadcast_div_kernel(const float* __restrict__ A,
     size_t a_offset = 0, b_offset = 0;
     size_t linear_idx = idx;
 
-    for (size_t i = 0; i < ndim; i++) {
-        size_t dim_idx = linear_idx % dims[i];
-        linear_idx /= dims[i];
-        if (a_strides[i] > 0) {
-            a_offset += dim_idx * a_strides[i];
+    for (size_t dim = ndim; dim-- > 0;) {
+        size_t dim_idx = linear_idx % dims[dim];
+        linear_idx /= dims[dim];
+
+        if (a_strides[dim] > 0) {
+            a_offset += dim_idx * a_strides[dim];
         }
-        if (b_strides[i] > 0) {
-            b_offset += dim_idx * b_strides[i];
+        if (b_strides[dim] > 0) {
+            b_offset += dim_idx * b_strides[dim];
         }
     }
 
