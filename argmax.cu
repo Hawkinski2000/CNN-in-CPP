@@ -53,7 +53,7 @@ __global__ void argmax_all_kernel(const float* __restrict__ data,
 
 // Kernel for cuda_max() where a dimension to reduce was specified
 __global__ void argmax_dim_kernel(const float* __restrict__ input,
-                                  int* __restrict__ output,
+                                  float* __restrict__ output,
                                   const size_t* __restrict__ in_dims,
                                   const size_t* __restrict__ out_strides,
                                   size_t dim,
@@ -100,7 +100,8 @@ __global__ void argmax_dim_kernel(const float* __restrict__ input,
         }
     }
 
-    output[out_flat_idx] = max_idx;
+    // output[out_flat_idx] = max_idx;
+    output[out_flat_idx] = static_cast<float>(max_idx);
 }
 
 // Function to return the indices of the maximum value of all elements in a tensor that runs on the GPU
@@ -129,7 +130,8 @@ Tensor Tensor::cuda_argmax(optional<size_t> dim) {
         int blocks = (total_elements + threads - 1) / threads;
         size_t shared_mem_size = threads * ndims * sizeof(size_t);
         argmax_dim_kernel<<<blocks, threads, shared_mem_size>>>(data.get(),
-                                                                reinterpret_cast<int*>(result.data.get()),
+                                                                // reinterpret_cast<int*>(result.data.get()),
+                                                                result.data.get(),
                                                                 d_in_dims,
                                                                 d_out_strides,
                                                                 d,
@@ -143,24 +145,28 @@ Tensor Tensor::cuda_argmax(optional<size_t> dim) {
     } else {
         // A dimension to reduce was not specified, so all dimensions are reduced
         float* d_max_value;
-        int* d_max_index;
+        // int* d_max_index;
+        float* d_max_index;
 
         cudaMalloc(&d_max_value, sizeof(float));
-        cudaMalloc(&d_max_index, sizeof(int));
+        // cudaMalloc(&d_max_index, sizeof(int));
+        cudaMalloc(&d_max_index, sizeof(float));
         cuda_fill(d_max_value, 1, -INFINITY);
 
         int threads = 256;
         int blocks = (total_elements + threads - 1) / threads;
         size_t shared_mem = threads * sizeof(float);
         argmax_all_kernel<<<blocks, threads, shared_mem>>>(data.get(),
-                                                           d_max_index,
+                                                        //    d_max_index,
+                                                           reinterpret_cast<int*>(d_max_index),
                                                            d_max_value,
                                                            total_elements);
 
         cudaDeviceSynchronize();
 
         result = Tensor::empty({1}, true);
-        result.data = shared_ptr<float>(reinterpret_cast<float*>(d_max_index), [](float* p) { cudaFree(p); });
+        // result.data = shared_ptr<float>(reinterpret_cast<float*>(d_max_index), [](float* p) { cudaFree(p); });
+        result.data = shared_ptr<float>(d_max_index, [](float* p) { cudaFree(p); });
 
         cudaFree(d_max_value);
     }
