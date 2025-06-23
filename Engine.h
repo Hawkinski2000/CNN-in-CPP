@@ -22,4 +22,8 @@ class Engine {
         static shared_ptr<Node> get_root();
 
         static shared_ptr<Node> root;
+
+        static size_t step;
+        static float trace_graph_total_time;
+        static float backward_loop_total_time;
 };

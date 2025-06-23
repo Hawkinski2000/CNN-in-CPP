@@ -14,7 +14,10 @@ class Optimizer {
         // Function to perform a single optimization step to update parameters
         virtual void step() = 0;
 
-        // Reset the gradients of all parameters
+        // Function to perform a single optimization step to update parameters that runs on the GPU
+        virtual void cuda_step() = 0;
+
+        // Function to reset the gradients of all parameters
         void zero_grad();
 };
 
@@ -30,4 +33,7 @@ class SGD : public Optimizer {
 
         // Function to perform a single optimization step to update parameters
         void step() override;
+
+        // Function to perform a single optimization step to update parameters that runs on the GPU
+        void cuda_step() override;
 };

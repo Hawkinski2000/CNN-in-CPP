@@ -151,12 +151,7 @@ float MatmulBackward::matmul_total_time = 0;
 void MatmulBackward::backward() {
     auto matmul_start = chrono::steady_clock::now();
     Tensor dLdc = *tensor;
-    if (tensor->device == "cuda") {
-        cudaMemcpy(dLdc.data.get(), tensor->grad.get(), tensor->total_elements * sizeof(float), cudaMemcpyDeviceToDevice);
-    }
-    else {
-        copy(tensor->grad.get(), tensor->grad.get() + tensor->total_elements, dLdc.data.get());
-    }
+    dLdc.data = tensor->grad;
 
     dLda = dLdc.matmul(*rhs, false, true, false);
     dLdb = lhs->matmul(dLdc, true, false, false);

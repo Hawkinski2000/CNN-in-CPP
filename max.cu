@@ -95,7 +95,7 @@ Tensor Tensor::cuda_max(optional<size_t> dim) {
         cudaMalloc(&d_out_strides, ndims * sizeof(size_t));
         cudaMemcpy(d_out_strides, result.strides.data(), ndims * sizeof(size_t), cudaMemcpyHostToDevice);
 
-        int threads = 256;
+        int threads = 1024;
         int blocks = (total_elements + threads - 1) / threads;
         size_t shared_mem_size = threads * ndims * sizeof(size_t);
         max_dim_kernel<<<blocks, threads, shared_mem_size>>>(data.get(),
@@ -105,9 +105,7 @@ Tensor Tensor::cuda_max(optional<size_t> dim) {
                                                              d,
                                                              ndims,
                                                              total_elements);
-
-        cudaDeviceSynchronize();
-
+                                                             
         cudaFree(d_in_dims);
         cudaFree(d_out_strides);
     }
@@ -118,7 +116,7 @@ Tensor Tensor::cuda_max(optional<size_t> dim) {
         cudaMalloc(&d_result, sizeof(float));
         cuda_fill(d_result, 1, -INFINITY);
 
-        int threads = 256;
+        int threads = 1024;
         int blocks = (total_elements + threads - 1) / threads;
         size_t shared_mem_size = threads * sizeof(float);
         max_all_kernel<<<blocks, threads, shared_mem_size>>>(data.get(), d_result, total_elements);

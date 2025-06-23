@@ -8,8 +8,9 @@ __global__ void argmax_all_kernel(const float* __restrict__ data,
                                   int* __restrict__ result_index,
                                   float* __restrict__ result_value,
                                   size_t size) {
-    extern __shared__ float sdata[]; // Array in shared memory for max values this block
-    extern __shared__ int sindex[]; // Array in shared memory for max indices this block
+    extern __shared__ char shared_mem_all[]; // Array in shared memory for max values and indices in this block
+    float* sdata = (float*)shared_mem_all; // Array in shared memory for max values in this block
+    int* sindex = (int*)&sdata[blockDim.x]; // Array in shared memory for max indices in this block
     int tid = threadIdx.x; // Thread ID
     size_t i = blockIdx.x * blockDim.x + tid; // Index of element in data to process
 
@@ -55,6 +56,7 @@ __global__ void argmax_all_kernel(const float* __restrict__ data,
 __global__ void argmax_dim_kernel(const float* __restrict__ input,
                                   float* __restrict__ output,
                                   const size_t* __restrict__ in_dims,
+                                  const size_t* __restrict__ in_strides,
                                   const size_t* __restrict__ out_strides,
                                   size_t dim,
                                   size_t ndims,
@@ -68,9 +70,9 @@ __global__ void argmax_dim_kernel(const float* __restrict__ input,
     size_t* idx = &shared_mem[threadIdx.x * ndims]; // An array containing the multidimensional index of the output position to store into
 
     size_t idx_copy = i;
-    for (int j = ndims - 1; j >= 0; --j) {
-        idx[j] = idx_copy % in_dims[j];
-        idx_copy /= in_dims[j];
+   for (size_t j = ndims; j > 0; j--) {
+        idx[j - 1] = idx_copy % in_dims[j - 1];
+        idx_copy /= in_dims[j - 1];
     }
 
     idx[dim] = 0;
@@ -86,12 +88,7 @@ __global__ void argmax_dim_kernel(const float* __restrict__ input,
         idx[dim] = k;
         size_t in_flat_idx = 0;
         for (size_t j = 0; j < ndims; j++) {
-            if (j == ndims - 1) {
-                in_flat_idx += idx[j];
-            }
-            else {
-                in_flat_idx += in_dims[j + 1];
-            }
+            in_flat_idx += idx[j] * in_strides[j];
         }
         float cur_val = input[in_flat_idx];
         if (cur_val > max_val) {
@@ -118,29 +115,38 @@ Tensor Tensor::cuda_argmax(optional<size_t> dim) {
 
         size_t ndims = dimensions.size();
 
-        // Allocate device memory for in_dims and out_strides
+        vector<size_t> in_strides(ndims);
+        in_strides[ndims - 1] = 1;
+        for (size_t j = ndims - 1; j > 0; j--) {
+            in_strides[j - 1] = in_strides[j] * dimensions[j];
+        }
+
         size_t* d_in_dims;
+        size_t* d_in_strides;
         size_t* d_out_strides;
         cudaMalloc(&d_in_dims, ndims * sizeof(size_t));
         cudaMemcpy(d_in_dims, dimensions.data(), ndims * sizeof(size_t), cudaMemcpyHostToDevice);
+        cudaMalloc(&d_in_strides, ndims * sizeof(size_t));
+        cudaMemcpy(d_in_strides, in_strides.data(), ndims * sizeof(size_t), cudaMemcpyHostToDevice);
         cudaMalloc(&d_out_strides, ndims * sizeof(size_t));
         cudaMemcpy(d_out_strides, result.strides.data(), ndims * sizeof(size_t), cudaMemcpyHostToDevice);
 
-        int threads = 256;
+        int threads = 1024;
         int blocks = (total_elements + threads - 1) / threads;
         size_t shared_mem_size = threads * ndims * sizeof(size_t);
         argmax_dim_kernel<<<blocks, threads, shared_mem_size>>>(data.get(),
-                                                                // reinterpret_cast<int*>(result.data.get()),
                                                                 result.data.get(),
                                                                 d_in_dims,
+                                                                d_in_strides,
                                                                 d_out_strides,
                                                                 d,
                                                                 ndims,
                                                                 total_elements);
 
-        cudaDeviceSynchronize();
+        
 
         cudaFree(d_in_dims);
+        cudaFree(d_in_strides);
         cudaFree(d_out_strides);
     } else {
         // A dimension to reduce was not specified, so all dimensions are reduced
@@ -153,19 +159,17 @@ Tensor Tensor::cuda_argmax(optional<size_t> dim) {
         cudaMalloc(&d_max_index, sizeof(float));
         cuda_fill(d_max_value, 1, -INFINITY);
 
-        int threads = 256;
+        int threads = 1024;
         int blocks = (total_elements + threads - 1) / threads;
-        size_t shared_mem = threads * sizeof(float);
+        size_t shared_mem = threads * (sizeof(float) + sizeof(int));
         argmax_all_kernel<<<blocks, threads, shared_mem>>>(data.get(),
-                                                        //    d_max_index,
                                                            reinterpret_cast<int*>(d_max_index),
                                                            d_max_value,
                                                            total_elements);
 
-        cudaDeviceSynchronize();
+        
 
         result = Tensor::empty({1}, true);
-        // result.data = shared_ptr<float>(reinterpret_cast<float*>(d_max_index), [](float* p) { cudaFree(p); });
         result.data = shared_ptr<float>(d_max_index, [](float* p) { cudaFree(p); });
 
         cudaFree(d_max_value);

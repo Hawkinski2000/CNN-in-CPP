@@ -6,7 +6,6 @@ using namespace std;
 
 
 class Node;
-class Optimizer;
 
 class Tensor {
     public:
@@ -80,10 +79,10 @@ class Tensor {
         static Tensor rand(vector<size_t> dims, size_t in_features = 0);
 
         // Function to create a tensor from specified values
-        static Tensor tensor(initializer_list<float> values);
+        static Tensor tensor(initializer_list<float> values, bool use_cuda=false);
 
         // Function to create a tensor from a vector
-        static Tensor tensor(vector<float>& values);
+        static Tensor tensor(vector<float>& values, bool use_cuda=false);
 
         // ---------------------------------------------------------------------------
 
@@ -360,8 +359,6 @@ class Tensor {
         // Function to apply a 2D max pooling over an input tensor
         friend Tensor maxpool2d_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t stride, size_t padding, size_t dilation);
 
-        friend void zero_grad();
-
         // ---------------------------------------------------------------------------
 
         shared_ptr<float> data;
@@ -383,7 +380,6 @@ class Tensor {
         friend class NLLLossBackward;
         friend class Conv2dBackward;
         friend class MaxPool2dBackward;
-        friend class Optimizer;
 
         // ---------------------------------------------------------------------------
 
@@ -394,10 +390,10 @@ class Tensor {
         Tensor(const vector<size_t>& dims, bool use_cuda=false);
 
         // Constructor for Tensor class used by tensor() where values are specified
-        Tensor(initializer_list<float> values);
+        Tensor(initializer_list<float> values, bool use_cuda=false);
 
         // Constructor for Tensor class used by tensor() to convert a vector to a tensor
-        Tensor(const vector<float>& values);
+        Tensor(const vector<float>& values, bool use_cuda=false);
 
         // ---------------------------------------------------------------------------
 

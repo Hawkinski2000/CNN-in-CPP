@@ -65,7 +65,7 @@ Tensor Tensor::cuda_sub(Tensor& other) {
         cudaMemcpy(d_a_strides, a_strides.data(), result_dims.size() * sizeof(size_t), cudaMemcpyHostToDevice);
         cudaMemcpy(d_b_strides, b_strides.data(), result_dims.size() * sizeof(size_t), cudaMemcpyHostToDevice);
 
-        int threads = 256;
+        int threads = 1024;
         int blocks = (result.total_elements + threads - 1) / threads;
         broadcast_sub_kernel<<<blocks, threads>>>(this->data.get(),
                                                   other.data.get(),
@@ -76,7 +76,7 @@ Tensor Tensor::cuda_sub(Tensor& other) {
                                                   result_dims.size(),
                                                   result.total_elements);
 
-        cudaDeviceSynchronize();
+        
 
         cudaFree(d_result_dims);
         cudaFree(d_a_strides);
@@ -87,11 +87,11 @@ Tensor Tensor::cuda_sub(Tensor& other) {
     else {
         result = Tensor(this->dimensions, true);
 
-        int threads = 256;
+        int threads = 1024;
         int blocks = (total_elements + threads - 1) / threads;
         sub_kernel<<<blocks, threads>>>(this->data.get(), other.data.get(), result.data.get(), result.total_elements);
 
-        cudaDeviceSynchronize();
+        
     }
 
     return result;
@@ -110,10 +110,10 @@ __global__ void sub_scalar_kernel(float* A, float* B, float value, size_t total_
 // Function for element-wise subtraction between tensors and scalars that runs on the GPU
 Tensor Tensor::cuda_sub_scalar(float value) {
     Tensor result(this->dimensions, true);
-    int threads = 256;
+    int threads = 1024;
     int blocks = (total_elements + threads - 1) / threads;
     sub_scalar_kernel<<<blocks, threads>>>(this->data.get(), result.data.get(), value, this->total_elements);
-    cudaDeviceSynchronize();
+    
     return result;
 }
 
@@ -129,10 +129,10 @@ __global__ void sub_inplace_kernel(float* A, float* B, size_t total_elements) {
 
 // Function for element-wise subtraction and assignment between tensors that runs on the GPU
 Tensor& Tensor::cuda_sub_(const Tensor& other) {
-    int threads = 256;
+    int threads = 1024;
     int blocks = (total_elements + threads - 1) / threads;
     sub_inplace_kernel<<<blocks, threads>>>(this->data.get(), other.data.get(), this->total_elements);
-    cudaDeviceSynchronize();
+    
     return *this;
 }
 
@@ -148,9 +148,9 @@ __global__ void sub_scalar_inplace_kernel(float* A, float value, size_t total_el
 
 // Function for element-wise subtraction and assignment between tensors and scalars that runs on the GPU
 Tensor& Tensor::cuda_sub_scalar_(float value) {
-    int threads = 256;
+    int threads = 1024;
     int blocks = (total_elements + threads - 1) / threads;
     sub_scalar_inplace_kernel<<<blocks, threads>>>(this->data.get(), value, this->total_elements);
-    cudaDeviceSynchronize();
+    
     return *this;
 }

@@ -1,6 +1,7 @@
 #include <iostream>
 #include "functional.h"
 #include "Node.h"
+#include <cuda_runtime.h>
 using namespace std;
 
 // Function to apply the rectified linear unit function to the input tensor
@@ -62,7 +63,7 @@ Tensor log_softmax(Tensor& input, optional<size_t> dim) {
 // Function to compute the negative log likelihood loss from the input tensor and targets
 Tensor nll_loss(Tensor& input, Tensor& targets) {
     Tensor result;
-
+    
     if (input.device == "cuda") {
         result = nll_loss_cuda(input, targets);
     }

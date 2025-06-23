@@ -72,18 +72,8 @@ Tensor fold_cuda(Tensor& input, initializer_list<size_t> output_size, initialize
     dim3 gridDim(static_cast<unsigned int>(N), static_cast<unsigned int>(L));
     dim3 blockDim(static_cast<unsigned int>(C * kH * kW));
 
-    // Allocate GPU memory for the input tensor if not already
-    if (!input.device_data) {
-        cudaMalloc(&input.device_data, input.total_elements * sizeof(float));
-    }
-
-    // Transfer the input tensor's data from CPU to GPU
-    cudaMemcpy(input.device_data, input.data.get(), sizeof(float) * input.total_elements, cudaMemcpyHostToDevice);
-
-    cudaMemset(result.device_data, 0, sizeof(float) * result.total_elements);
-
-    fold_kernel<<<gridDim, blockDim>>>(input.device_data,
-                                       result.device_data,
+    fold_kernel<<<gridDim, blockDim>>>(input.data.get(),
+                                       result.data.get(),
                                        N,
                                        C,
                                        out_H,
@@ -97,10 +87,7 @@ Tensor fold_cuda(Tensor& input, initializer_list<size_t> output_size, initialize
                                        conv_out_H,
                                        conv_out_W);
 
-    cudaDeviceSynchronize();
-
-    // Transfer the result tensor's data from GPU to CPU
-    cudaMemcpy(result.data.get(), result.device_data, sizeof(float) * result.total_elements, cudaMemcpyDeviceToHost);
+    
 
     return result;
 }

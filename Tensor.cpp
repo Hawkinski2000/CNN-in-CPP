@@ -40,7 +40,6 @@ Tensor::Tensor(Tensor&& other)
         node->tensor = this;
     }
     device = other.device;
-    cout << "Move constructor" << endl;
 }
 
 // Constructor for Tensor class used by creation methods that specify a shape as an initializer_list
@@ -95,8 +94,6 @@ Tensor::Tensor(const vector<size_t>& dims, bool use_cuda) {
         total_elements *= dim;
     }
 
-    // data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
-
     if (use_cuda) {
         float* device_data;
         cudaMalloc(&device_data, total_elements * sizeof(float));
@@ -120,7 +117,7 @@ Tensor::Tensor(const vector<size_t>& dims, bool use_cuda) {
 }
 
 // Constructor for Tensor class used by tensor() where values are specified
-Tensor::Tensor(initializer_list<float> values) {
+Tensor::Tensor(initializer_list<float> values, bool use_cuda) {
 
     // Handle empty values case
     if (values.size() == 0) {
@@ -130,19 +127,33 @@ Tensor::Tensor(initializer_list<float> values) {
         return;
     }
 
-    data = shared_ptr<float>(new float[values.size()], default_delete<float[]>());
-    copy(values.begin(), values.end(), data.get());
-
     dimensions = {values.size()};
-    strides = {1};
+
     total_elements = values.size();
 
-    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
-    fill(grad.get(), grad.get() + total_elements, 0);
+    if (use_cuda) {
+        float* device_data;
+        cudaMalloc(&device_data, total_elements * sizeof(float));
+        data = shared_ptr<float>(device_data, [](float* p) { cudaFree(p); });
+
+        float* device_grad;
+        cudaMalloc(&device_grad, total_elements * sizeof(float));
+        grad = shared_ptr<float>(device_grad, [](float* p) { cudaFree(p); });
+        cuda_fill(grad.get(), total_elements, 0);
+
+        device = "cuda";
+    } else {
+        data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+        
+        grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+        fill(grad.get(), grad.get() + total_elements, 0);
+    }
+
+    strides = {1};
 }
 
 // Constructor for Tensor class used by tensor() to convert a vector to a tensor
-Tensor::Tensor(const vector<float>& values) {
+Tensor::Tensor(const vector<float>& values, bool use_cuda) {
     
     // Handle empty vector case
     if (values.empty()) {
@@ -152,15 +163,29 @@ Tensor::Tensor(const vector<float>& values) {
         return;
     }
 
-    data = shared_ptr<float>(new float[values.size()], default_delete<float[]>());
-    copy(values.begin(), values.end(), data.get());
-
     dimensions = {values.size()};
-    strides = {1};
+
     total_elements = values.size();
 
-    grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
-    fill(grad.get(), grad.get() + total_elements, 0);
+    if (use_cuda) {
+        float* device_data;
+        cudaMalloc(&device_data, total_elements * sizeof(float));
+        data = shared_ptr<float>(device_data, [](float* p) { cudaFree(p); });
+
+        float* device_grad;
+        cudaMalloc(&device_grad, total_elements * sizeof(float));
+        grad = shared_ptr<float>(device_grad, [](float* p) { cudaFree(p); });
+        cuda_fill(grad.get(), total_elements, 0);
+
+        device = "cuda";
+    } else {
+        data = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+        
+        grad = shared_ptr<float>(new float[total_elements], default_delete<float[]>());
+        fill(grad.get(), grad.get() + total_elements, 0);
+    }
+    
+    strides = {1};
 }
 
 // Destructor for the Tensor class
@@ -229,23 +254,25 @@ Tensor Tensor::ones(vector<size_t> dims) {
 // Function to create a tensor of random values from a specified shape
 Tensor Tensor::rand(initializer_list<size_t> dims, size_t in_features, bool use_cuda) {
     Tensor tensor;
-
+    
     if (use_cuda) {
         tensor = cuda_rand(dims, in_features);
     }
     else {
+        tensor = Tensor(dims);
+
         if (in_features == 0) {
             in_features = tensor.dimensions[0];
         }
+
         float limit = sqrt(1.0f / in_features);
         random_device rd;
         mt19937 gen(rd()); // Mersenne Twister RNG
         uniform_real_distribution<float> dist(-limit, limit);
         for (size_t i = 0; i < tensor.total_elements; i++) {
-            tensor.data.get()[i] = dist(gen); 
+            tensor.data.get()[i] = dist(gen);
         }
     }
-
     return tensor;
 }
 
@@ -266,13 +293,13 @@ Tensor Tensor::rand(vector<size_t> dims, size_t in_features) {
 }
 
 // Function to create a tensor from specified values
-Tensor Tensor::tensor(initializer_list<float> values) {
-    return Tensor(values);
+Tensor Tensor::tensor(initializer_list<float> values, bool use_cuda) {
+    return Tensor(values, use_cuda);
 }
 
 // Function to create a tensor from a vector
-Tensor Tensor::tensor(vector<float>& values) {
-    return Tensor(values);
+Tensor Tensor::tensor(vector<float>& values, bool use_cuda) {
+    return Tensor(values, use_cuda);
 }
 
 // ---------------------------------------------------------------------------
@@ -592,6 +619,7 @@ Tensor Tensor::max(optional<size_t> dim) {
         }
         result[0] = max;
     }
+
     return result;
 }
 
@@ -876,7 +904,7 @@ Tensor Tensor::operator-(Tensor& other) {
         // Need to perform broadcasting since the tensors have different shapes
         if (dimensions != other.dimensions) {
             vector<size_t> result_dims = broadcast_result_shape(dimensions, other.dimensions);
-            result = Tensor(result_dims);
+            result = Tensor::zeros(result_dims);
 
             vector<size_t> broadcasted_a_strides = broadcast_strides(dimensions, strides, result_dims);
             vector<size_t> broadcasted_b_strides = broadcast_strides(other.dimensions, other.strides, result_dims);
@@ -1122,8 +1150,15 @@ Tensor& Tensor::operator/=(float value) {
 
 // Overload the << operator for printing the contents of a tensor
 ostream& operator<<(ostream& os, const Tensor& tensor) {
-    Tensor result(tensor.dimensions);
-    cudaMemcpy(result.data.get(), tensor.data.get(), tensor.total_elements * sizeof(float), cudaMemcpyDeviceToHost);
+    Tensor result;
+
+    if (tensor.device == "cuda") {
+        result = Tensor::empty(tensor.dimensions);
+        cudaMemcpy(result.data.get(), tensor.data.get(), tensor.total_elements * sizeof(float), cudaMemcpyDeviceToHost);
+    }
+    else {
+        result = tensor;
+    }
 
     os << '(';
     for (size_t i = 0; i < result.total_elements; i++) {
@@ -1216,6 +1251,7 @@ void Tensor::backward() {
     else {
         fill(grad.get(), grad.get() + total_elements, 1);
     }
+
     Engine::run_backward(node);
 }
 

@@ -84,17 +84,9 @@ Tensor maxpool2d_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t
     dim3 gridDim(N, C);
     dim3 blockDim(out_W, out_H);
 
-    // Allocate GPU memory for the input tensor if not already
-    if (!input.device_data) {
-        cudaMalloc(&input.device_data, input.total_elements * sizeof(float));
-    }
-
-    // Transfer the input tensor's data from CPU to GPU
-    cudaMemcpy(input.device_data, input.data.get(), sizeof(float) * input.total_elements, cudaMemcpyHostToDevice);
-
-    maxpool2d_kernel<<<gridDim, blockDim>>>(input.device_data,
-                                            result.device_data,
-                                            max_indices.device_data,
+    maxpool2d_kernel<<<gridDim, blockDim>>>(input.data.get(),
+                                            result.data.get(),
+                                            max_indices.data.get(),
                                             N,
                                             C,
                                             in_H,
@@ -107,13 +99,7 @@ Tensor maxpool2d_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t
                                             padding,
                                             dilation);
 
-    cudaDeviceSynchronize();
-
-    // Transfer the result tensor's data from GPU to CPU
-    cudaMemcpy(result.data.get(), result.device_data, sizeof(float) * result.total_elements, cudaMemcpyDeviceToHost);
-
-    // Transfer the max_indices tensor's data from GPU to CPU
-    cudaMemcpy(max_indices.data.get(), max_indices.device_data, sizeof(float) * max_indices.total_elements, cudaMemcpyDeviceToHost);
+    
 
     if (input.requires_grad) {
         result.node = make_shared<MaxPool2dBackward>(make_shared<Tensor>(input),

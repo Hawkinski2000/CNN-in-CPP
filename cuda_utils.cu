@@ -11,8 +11,8 @@ __global__ void fill_kernel(float* data, size_t total_elements, float value) {
 }
 
 void cuda_fill(float* data, size_t total_elements, float value) {
-    int threads = 256;
+    int threads = 1024;
     int blocks = (total_elements + threads - 1) / threads;
     fill_kernel<<<blocks, threads>>>(data, total_elements, value);
-    cudaDeviceSynchronize();
+    
 }

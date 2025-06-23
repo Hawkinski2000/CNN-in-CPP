@@ -71,16 +71,8 @@ Tensor unfold_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t di
     dim3 gridDim(static_cast<unsigned int>(N), static_cast<unsigned int>(L));
     dim3 blockDim(static_cast<unsigned int>(C * kH * kW));
 
-    // Allocate GPU memory for the input tensor if not already
-    if (!input.device_data) {
-        cudaMalloc(&input.device_data, input.total_elements * sizeof(float));
-    }
-
-    // Transfer the input tensor's data from CPU to GPU
-    cudaMemcpy(input.device_data, input.data.get(), sizeof(float) * input.total_elements, cudaMemcpyHostToDevice);
-
-    unfold_kernel<<<gridDim, blockDim>>>(input.device_data,
-                                         result.device_data,
+    unfold_kernel<<<gridDim, blockDim>>>(input.data.get(),
+                                         result.data.get(),
                                          N,
                                          C,
                                          in_H,
@@ -94,10 +86,7 @@ Tensor unfold_cuda(Tensor input, initializer_list<size_t> kernel_size, size_t di
                                          dilation,
                                          L);
 
-    cudaDeviceSynchronize();
-
-    // Transfer the result tensor's data from GPU to CPU
-    cudaMemcpy(result.data.get(), result.device_data, sizeof(float) * result.total_elements, cudaMemcpyDeviceToHost);
     
+
     return result;
 }

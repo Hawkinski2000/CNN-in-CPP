@@ -31,11 +31,11 @@ Tensor Tensor::cuda_rand(initializer_list<size_t> dims, size_t in_features) {
 
     uint64_t seed = static_cast<uint64_t>(time(nullptr));
 
-    int threads = 256;
+    int threads = 1024;
     int blocks = (tensor.total_elements + threads - 1) / threads;
     rand_kernel<<<blocks, threads>>>(tensor.data.get(), tensor.total_elements, lower, upper, seed);
     
-    cudaDeviceSynchronize();
+    
 
     return tensor;
 }
@@ -55,10 +55,10 @@ __global__ void exp_kernel(const float* __restrict__ input, float* output, size_
 Tensor Tensor::cuda_exp() {
     Tensor result(dimensions, true);
 
-    int threads = 256;
+    int threads = 1024;
     int blocks = (total_elements + threads - 1) / threads;
     exp_kernel<<<blocks, threads>>>(data.get(), result.data.get(), total_elements);
-    cudaDeviceSynchronize();
+    
 
     return result;
 }
@@ -78,10 +78,10 @@ __global__ void log_kernel(const float* __restrict__ input, float* output, size_
 Tensor Tensor::cuda_log() {
     Tensor result(dimensions, true);
 
-    int threads = 256;
+    int threads = 1024;
     int blocks = (total_elements + threads - 1) / threads;
     log_kernel<<<blocks, threads>>>(data.get(), result.data.get(), total_elements);
-    cudaDeviceSynchronize();
+    
 
     return result;
 }
@@ -109,10 +109,10 @@ __global__ void cuda_eq_kernel(const float* __restrict__ A,
 Tensor Tensor::cuda_eq(const Tensor& other) {
     Tensor result(dimensions, true);
 
-    int threads = 256;
+    int threads = 1024;
     int blocks = (total_elements + threads - 1) / threads;
     cuda_eq_kernel<<<blocks, threads>>>(data.get(), other.data.get(), result.data.get(), total_elements);
-    cudaDeviceSynchronize();
+    
 
     return result;
 }

@@ -15,10 +15,10 @@ __global__ void sgd_step_kernel(float* __restrict__ data, const float* __restric
 // Function to perform a single optimization step to update parameters that runs on the GPU
 void SGD::cuda_step() {
     for (Tensor* tensor : params) {
-        int threads = 256;
+        int threads = 1024;
         int blocks = (tensor->numel() + threads - 1) / threads;
         sgd_step_kernel<<<blocks, threads>>>(tensor->data.get(), tensor->grad.get(), lr, tensor->numel());
     }
 
-    cudaDeviceSynchronize();
+    
 }
