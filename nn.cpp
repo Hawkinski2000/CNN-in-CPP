@@ -142,3 +142,31 @@ vector<Tensor*> Conv2d::parameters() {
 string Conv2d::name() {
     return "Conv2d";
 }
+
+// ---------------------------------------------------------------------------
+
+// Constructor for the MaxPool2d class
+MaxPool2d::MaxPool2d(initializer_list<size_t> kernel_size, size_t stride, size_t padding, size_t dilation) {
+    kH = *kernel_size.begin();
+    if (kernel_size.size() == 1) {
+        kW = kH;
+    }
+    else {
+        kW = *(kernel_size.begin() + 1);
+    }
+    this->stride = stride;
+    this->padding = padding;
+    this->dilation = dilation;   
+}
+
+// Forwards inputs through the Conv2d layer
+Tensor MaxPool2d::forward(Tensor& input) {
+    Tensor result = maxpool2d_cuda(input, {kH, kW}, stride, padding, dilation);
+
+    return result;
+}
+
+// Function to return the type of Module
+string MaxPool2d::name() {
+    return "MaxPool2d";
+}

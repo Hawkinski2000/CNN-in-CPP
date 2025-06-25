@@ -55,7 +55,9 @@ int main() {
     char byte;
     for (int i = 0; i < train_images_file_size; i++) {
         train_images_file.read(&byte, 1);
-        train_images_host[i] = static_cast<float>(static_cast<uint8_t>(byte)) / 255;
+        // train_images_host[i] = static_cast<float>(static_cast<uint8_t>(byte)) / 255;
+        float normalized_pixel = static_cast<float>(static_cast<uint8_t>(byte)) / 255.0f;
+        train_images_host[i] = (normalized_pixel - 0.1307f) / 0.3081f;
     }
     Tensor train_images = Tensor::empty({train_images_file_size}, true);
     cudaMemcpy(train_images.data.get(), train_images_host.data.get(), train_images_file_size * sizeof(float), cudaMemcpyHostToDevice);
@@ -83,7 +85,9 @@ int main() {
     Tensor test_images_host = Tensor::empty({test_images_file_size});
     for (int i = 0; i < test_images_file_size; i++) {
         test_images_file.read(&byte, 1);
-        test_images_host[i] = static_cast<float>(static_cast<uint8_t>(byte)) / 255;
+        // test_images_host[i] = static_cast<float>(static_cast<uint8_t>(byte)) / 255;
+        float normalized_pixel = static_cast<float>(static_cast<uint8_t>(byte)) / 255.0f;
+        test_images_host[i] = (normalized_pixel - 0.1307f) / 0.3081f;
     }
     Tensor test_images = Tensor::empty({test_images_file_size}, true);
     cudaMemcpy(test_images.data.get(), test_images_host.data.get(), test_images_file_size * sizeof(float), cudaMemcpyHostToDevice);
@@ -103,17 +107,16 @@ int main() {
     // ---- Create an CNN Model for MNIST ----
 
     class Net : public Module {
-        Conv2d conv1 = Conv2d(1, 8, {5});
-        Conv2d conv2 = Conv2d(8, 16, {5});
+        Conv2d conv1 = Conv2d(1, 6, {5});
+        MaxPool2d pool = MaxPool2d({2});
+        Conv2d conv2 = Conv2d(6, 16, {5});
         Linear fc1 = Linear(256, 120);
         Linear fc2 = Linear(120, 84);
         Linear fc3 = Linear(84, 10);
 
         Tensor forward(Tensor& x) override {
-            x = relu(conv1(x));
-            x = maxpool2d_cuda(x, {2});
-            x = relu(conv2(x));
-            x = maxpool2d_cuda(x, {2});
+            x = pool(relu(conv1(x)));
+            x = pool(relu(conv2(x)));
             x = x.view({-1, 256});
             x = relu(fc1(x));
             x = relu(fc2(x));
@@ -127,7 +130,7 @@ int main() {
     // ---------------------------------------------------------------------------
     // ---- Model Hyperparameters ----
 
-    size_t epochs = 1;
+    size_t epochs = 10;
     size_t batch_size = 64;
     float lr = 0.1;
 

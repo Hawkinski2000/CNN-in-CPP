@@ -81,3 +81,25 @@ class Conv2d : public Module {
         bool use_bias;
         Tensor bias;
 };
+
+// ---------------------------------------------------------------------------
+
+// A single 2D max pooling layer that inherits from the Module class
+class MaxPool2d : public Module {
+    public:
+        // Constructor for the MaxPool2d class
+        MaxPool2d(initializer_list<size_t> kernel_size, size_t stride=0, size_t padding=0, size_t dilation=1);
+
+        // Forwards inputs through the MaxPool2d layer
+        Tensor forward(Tensor& input) override;
+
+        // Function to return the type of Module
+        string name() override;
+
+        size_t kH;
+        size_t kW;
+        size_t stride;
+        size_t padding;
+        size_t dilation;
+        Tensor max_indices;
+};
