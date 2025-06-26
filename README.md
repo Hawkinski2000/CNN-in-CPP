@@ -35,7 +35,7 @@ class Net : public Module {
 Net net;
 ```
 Training is as simple as:
-```
+```python
 SGD optimizer = SGD(net.parameters(), lr);
 
 for (size_t step = 0; step < steps; step++) {
