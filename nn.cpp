@@ -170,3 +170,20 @@ Tensor MaxPool2d::forward(Tensor& input) {
 string MaxPool2d::name() {
     return "MaxPool2d";
 }
+
+// ---------------------------------------------------------------------------
+
+// Constructor for the ReLU class
+ReLU::ReLU() = default;
+
+// Forwards inputs through the ReLU layer
+Tensor ReLU::forward(Tensor& input) {
+    Tensor result = relu(input);
+
+    return result;
+}
+
+// Function to return the type of Module
+string ReLU::name() {
+    return "ReLU";
+}

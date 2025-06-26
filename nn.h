@@ -103,3 +103,18 @@ class MaxPool2d : public Module {
         size_t dilation;
         Tensor max_indices;
 };
+
+// ---------------------------------------------------------------------------
+
+// A single rectified linear unit layer that inherits from the Module class
+class ReLU : public Module {
+    public:
+        // Constructor for the ReLU class
+        ReLU();
+
+        // Forwards inputs through the ReLU layer
+        Tensor forward(Tensor& input) override;
+
+        // Function to return the type of Module
+        string name() override;
+};
