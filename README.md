@@ -12,7 +12,7 @@ While the current focus is on CNNs, I plan to expand the framework to support ot
 # Example
 Create a CNN model for classifying handwritten digits from the MNIST dataset, inspired
 by LeNet-5, similar to [this example](https://docs.pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#define-a-convolutional-neural-network) in PyTorch.
-```python
+```cpp
 class Net : public Module {
         Conv2d conv1 = Conv2d(1, 6, {5});
         MaxPool2d pool = MaxPool2d({2});
@@ -35,7 +35,7 @@ class Net : public Module {
 Net net;
 ```
 Training is as simple as:
-```python
+```cpp
 SGD optimizer = SGD(net.parameters(), lr);
 
 for (size_t step = 0; step < steps; step++) {
